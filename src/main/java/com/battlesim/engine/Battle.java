@@ -1,17 +1,11 @@
 package com.battlesim.engine;
 
 import com.battlesim.model.Character;
+import com.battlesim.model.Passive;
 import com.battlesim.model.Team;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Runs a full battle between two Teams. The TurnOrderScheduler (built by
- * the caller from every living combatant on both sides) decides who acts
- * next; that Character's MoveSelector picks a Move + targets; TurnResolver
- * executes it; StatusEffectResolver ticks damage-over-time; repeat until
- * one team is wiped.
- */
 public class Battle {
 
     private final Team teamA;
@@ -40,16 +34,20 @@ public class Battle {
         while (teamA.hasAnyAlive() && teamB.hasAnyAlive()) {
             Character actor = scheduler.getNextActor();
             if (actor == null) {
-                break; // no one left able to act — shouldn't normally happen
+                break;
             }
 
             boolean actorOnTeamA = teamA.getMembers().contains(actor);
             List<Character> enemies = actorOnTeamA ? teamB.getMembers() : teamA.getMembers();
             MoveSelector selector = actorOnTeamA ? selectorA : selectorB;
 
-            List<Character> livingEnemies = aliveOnly(enemies);
+            List<Character> livingEnemies = targetableOnly(enemies);
             if (livingEnemies.isEmpty()) {
-                break; // opposing team just got wiped mid-loop
+                List<Character> anyoneAlive = aliveOnly(enemies);
+                if (anyoneAlive.isEmpty()) {
+                    break;
+                }
+                livingEnemies = anyoneAlive;
             }
 
             ActionChoice choice = selector.chooseAction(actor, livingEnemies);
@@ -71,6 +69,23 @@ public class Battle {
             }
         }
         return alive;
+    }
+
+    private List<Character> targetableOnly(List<Character> characters) {
+        List<Character> targetable = new ArrayList<>();
+        for (Character character : aliveOnly(characters)) {
+            boolean hidden = false;
+            for (Passive passive : character.getPassives()) {
+                if (passive.isUntargetable(character)) {
+                    hidden = true;
+                    break;
+                }
+            }
+            if (!hidden) {
+                targetable.add(character);
+            }
+        }
+        return targetable;
     }
 
     private void announceResult() {

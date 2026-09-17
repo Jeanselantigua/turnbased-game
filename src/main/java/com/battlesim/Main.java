@@ -29,11 +29,11 @@ public class Main {
         // Main just spawns fresh battle instances from those templates.
         Character knight = PlayableCharacters.knight().createInstance();
         Character rogue = PlayableCharacters.rogue().createInstance();
-//        Character monk = PlayableCharacters.monk().createInstance();
-//        Character caveman = PlayableCharacters.caveman().createInstance();
+        Character monk = PlayableCharacters.monk().createInstance();
+        Character caveman = PlayableCharacters.caveman().createInstance();
 
-        Team playerTeam = new Team(List.of(rogue));
-        Team enemyTeam = new Team(List.of(knight));
+        Team playerTeam = new Team(List.of(rogue, monk));
+        Team enemyTeam = new Team(List.of(knight, caveman));
 
         // Player-controlled: choose a move from console, then a target from console.
         MoveSelector consoleSelector = (actor, enemies) -> {

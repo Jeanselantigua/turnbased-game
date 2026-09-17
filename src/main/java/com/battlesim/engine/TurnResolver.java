@@ -2,16 +2,12 @@ package com.battlesim.engine;
 
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
+import com.battlesim.model.Passive;
 import com.battlesim.model.Status;
 import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Resolves a single Character's action: checks whether they can act
- * (status conditions), then applies their chosen Move against each
- * chosen target — accuracy roll, damage, status application.
- */
 public class TurnResolver {
 
     private final DamageCalculator damageCalculator;
@@ -40,19 +36,49 @@ public class TurnResolver {
     }
 
     private void resolveHitOnTarget(Character actor, Move move, Character target, List<String> log) {
-        boolean hits = randomProvider.nextInt(1, 100) <= move.getAccuracy();
+        int effectiveAccuracy = move.getAccuracy();
+        for (Passive passive : actor.getPassives()) {
+            effectiveAccuracy = passive.modifyAccuracy(actor, move, effectiveAccuracy);
+        }
+
+        boolean hits = randomProvider.nextInt(1, 100) <= effectiveAccuracy;
         if (!hits) {
             log.add("Missed " + target.getName() + "!");
+            for (Passive passive : actor.getPassives()) {
+                passive.onAttackMissed(actor, move, log);
+            }
             return;
         }
 
-        int damage = damageCalculator.calculateDamage(actor, target, move);
-        if (damage > 0) {
-            int actualDamage = target.getStats().applyDamage(damage);
-            log.add(target.getName() + " took " + actualDamage + " damage!");
+        boolean isCrit = false;
+        for (Passive passive : actor.getPassives()) {
+            if (passive.rollBonusCrit(actor, move)) {
+                isCrit = true;
+            }
+        }
+
+        double damage = damageCalculator.calculateDamage(actor, target, move);
+        for (Passive passive : actor.getPassives()) {
+            damage = passive.modifyOutgoingDamage(actor, target, move, damage, isCrit, log);
+        }
+        for (Passive passive : target.getPassives()) {
+            damage = passive.modifyIncomingDamage(target, actor, move, damage, log);
+        }
+
+        int finalDamage = (int) Math.round(Math.max(0, damage));
+        if (finalDamage > 0) {
+            int actualDamage = target.getStats().applyDamage(finalDamage);
+            log.add(target.getName() + " took " + actualDamage + " damage!" + (isCrit ? " Critical hit!" : ""));
+            for (Passive passive : target.getPassives()) {
+                passive.onDamageTaken(target, actor, actualDamage, log);
+            }
             if (target.isFainted()) {
                 log.add(target.getName() + " has fainted!");
             }
+        }
+
+        for (Passive passive : actor.getPassives()) {
+            passive.onHitLanded(actor, target, move, finalDamage, isCrit, log);
         }
 
         tryApplyStatus(move, target, log);

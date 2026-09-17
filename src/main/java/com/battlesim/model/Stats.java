@@ -1,10 +1,5 @@
 package com.battlesim.model;
 
-/**
- * Core numeric attributes for a Character.
- * Kept as a plain data holder — the engine classes decide how these
- * numbers get used (damage formulas, turn order, etc).
- */
 public class Stats {
 
     private int maxHp;
@@ -25,49 +20,33 @@ public class Stats {
         this.speed = speed;
     }
 
-    public int getMaxHp() {
-        return maxHp;
-    }
+    public int getMaxHp() { return maxHp; }
+    public int getCurrentHp() { return currentHp; }
+    public boolean isFainted() { return currentHp <= 0; }
 
-    public int getCurrentHp() {
-        return currentHp;
-    }
-
-    public boolean isFainted() {
-        return currentHp <= 0;
-    }
-
-    /** Applies damage, clamping at 0. Returns the amount actually taken. */
     public int applyDamage(int amount) {
         int before = currentHp;
         currentHp = Math.max(0, currentHp - amount);
         return before - currentHp;
     }
 
-    /** Heals, clamping at maxHp. Returns the amount actually restored. */
     public int heal(int amount) {
         int before = currentHp;
         currentHp = Math.min(maxHp, currentHp + amount);
         return currentHp - before;
     }
 
-    public int getAttack() {
-        return attack;
-    }
+    public int getAttack() { return attack; }
+    public int getDefense() { return defense; }
+    public int getMagicAttack() { return magicAttack; }
+    public int getMagicDefense() { return magicDefense; }
+    public int getSpeed() { return speed; }
 
-    public int getDefense() {
-        return defense;
-    }
-
-    public int getMagicAttack() {
-        return magicAttack;
-    }
-
-    public int getMagicDefense() {
-        return magicDefense;
-    }
-
-    public int getSpeed() {
-        return speed;
-    }
+    // Permanent stat growth, used by passives (e.g. Caveman's Frenzy) and,
+    // later, leveling. Speed intentionally has no increase method here —
+    // Caveman's passive design says his speed never grows.
+    public void increaseAttack(int amount) { this.attack += amount; }
+    public void increaseDefense(int amount) { this.defense += amount; }
+    public void increaseMagicAttack(int amount) { this.magicAttack += amount; }
+    public void increaseMagicDefense(int amount) { this.magicDefense += amount; }
 }
