@@ -12,5 +12,6 @@ public enum Type {
     EARTH,
     ARCANE,
     HOLY,
-    SHADOW
+    SHADOW,
+    UNDEAD
 }
