@@ -8,12 +8,15 @@ import java.util.Random;
 
 public class RogueCritStealthPassive implements Passive {
 
-    private static final double CRIT_CHANCE = 0.30;
+    private static final double CRIT_CHANCE = 0.15;
+    private static final double CRIT_MULTIPLIER = 1.75;
+    private static final double STEALTH_MULTIPLIER = 1.5;
+    private static final int STEALTH_EVASION = 35;
     private final Random random = new Random();
     private boolean stealthed = false;
 
     @Override
-    public boolean isUntargetable(Character self) {
+    public boolean isStealthed(Character self) {
         return stealthed;
     }
 
@@ -23,16 +26,24 @@ public class RogueCritStealthPassive implements Passive {
     }
 
     @Override
+    public int modifyIncomingAccuracy(Character self, Character attacker, Move move, int accuracy) {
+        if (!stealthed) {
+            return accuracy;
+        }
+        return accuracy - STEALTH_EVASION;
+    }
+
+    @Override
     public double modifyOutgoingDamage(Character self, Character target, Move move,
                                         double damage, boolean isCrit, List<String> log) {
         double multiplier = 1.0;
         if (isCrit) {
             log.add(self.getName() + " lands a critical hit!");
-            multiplier *= 2.0;
+            multiplier *= CRIT_MULTIPLIER;
         }
         if (stealthed) {
-            log.add(self.getName() + " strikes from the shadows for double damage!");
-            multiplier *= 2.0;
+            log.add(self.getName() + " strikes from the shadows!");
+            multiplier *= STEALTH_MULTIPLIER;
         }
         return damage * multiplier;
     }
@@ -46,6 +57,14 @@ public class RogueCritStealthPassive implements Passive {
         if (isCrit) {
             stealthed = true;
             log.add(self.getName() + " vanishes into the shadows!");
+        }
+    }
+
+    @Override
+    public void onDamageTaken(Character self, Character attacker, int damageTaken, List<String> log) {
+        if (stealthed && damageTaken > 0) {
+            stealthed = false;
+            log.add(self.getName() + " is forced out of the shadows!");
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.battlesim.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,11 +17,15 @@ public class Team {
         if (members.isEmpty()) {
             throw new IllegalArgumentException("A team needs at least one Character");
         }
-        this.members = members;
+        this.members = new ArrayList<>(members);
     }
 
     public List<Character> getMembers() {
         return members;
+    }
+
+    public void addMember(Character character) {
+        members.add(character);
     }
 
     public boolean hasAnyAlive() {

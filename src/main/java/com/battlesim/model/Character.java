@@ -10,6 +10,10 @@ public class Character {
     private final List<Move> moves;
     private final List<Passive> passives;
     private Status status;
+    private int statusTurnsRemaining;
+    private Character siphonSource;
+    private int siphonTurnsRemaining;
+    private Character summoner;
 
     public Character(String name, Stats stats, Type affinity, List<Move> moves, List<Passive> passives) {
         this.name = name;
@@ -18,6 +22,8 @@ public class Character {
         this.moves = moves;
         this.passives = passives;
         this.status = Status.NONE;
+        this.statusTurnsRemaining = 0;
+        this.siphonTurnsRemaining = 0;
     }
 
     /** Convenience constructor for a Character with no passives. */
@@ -31,8 +37,53 @@ public class Character {
     public List<Move> getMoves() { return moves; }
     public List<Passive> getPassives() { return passives; }
     public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
+    public int getStatusTurnsRemaining() { return statusTurnsRemaining; }
+
+    public void setStatus(Status status) {
+        this.status = status;
+        this.statusTurnsRemaining = status.getDefaultDurationTurns();
+    }
+
+    /** Counts down timed statuses (e.g. CURSED). No-op when duration is infinite. */
+    public void decrementStatusDuration() {
+        if (statusTurnsRemaining <= 0) {
+            return;
+        }
+        statusTurnsRemaining--;
+        if (statusTurnsRemaining == 0) {
+            this.status = Status.NONE;
+        }
+    }
+
     public boolean isFainted() { return stats.isFainted(); }
+
+    public Character getSiphonSource() { return siphonSource; }
+    public int getSiphonTurnsRemaining() { return siphonTurnsRemaining; }
+    public boolean isSiphoned() { return siphonTurnsRemaining > 0 && siphonSource != null; }
+
+    public void applySiphon(Character source, int turns) {
+        this.siphonSource = source;
+        this.siphonTurnsRemaining = turns;
+    }
+
+    public void decrementSiphonDuration() {
+        if (siphonTurnsRemaining <= 0) {
+            return;
+        }
+        siphonTurnsRemaining--;
+        if (siphonTurnsRemaining == 0) {
+            siphonSource = null;
+        }
+    }
+
+    public void clearSiphon() {
+        siphonSource = null;
+        siphonTurnsRemaining = 0;
+    }
+
+    public boolean isSummon() { return summoner != null; }
+    public Character getSummoner() { return summoner; }
+    public void setSummoner(Character summoner) { this.summoner = summoner; }
 
     public Move getMoveByName(String name) {
         for (Move move : moves) {

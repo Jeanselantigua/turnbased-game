@@ -51,6 +51,20 @@ public class TurnOrderScheduler {
         return next;
     }
 
+    /** Insert a mid-battle summon so they wait one speed delay from the current front of the queue. */
+    public void addCombatant(Character character) {
+        double soonest = Double.MAX_VALUE;
+        for (Double time : nextActionTime.values()) {
+            if (time < soonest) {
+                soonest = time;
+            }
+        }
+        if (soonest == Double.MAX_VALUE) {
+            soonest = 0;
+        }
+        nextActionTime.put(character, soonest + delayFor(character));
+    }
+
     /** Call after a Character acts, to push their next turn out based on speed. */
     public void advanceActor(Character character) {
         nextActionTime.merge(character, delayFor(character), Double::sum);

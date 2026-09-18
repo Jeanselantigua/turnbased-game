@@ -1,5 +1,6 @@
 package com.battlesim.engine;
 
+import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
@@ -12,13 +13,24 @@ public class TurnResolver {
 
     private final DamageCalculator damageCalculator;
     private final RandomProvider randomProvider;
+    private final StatusEffectResolver statusEffectResolver;
 
     public TurnResolver(DamageCalculator damageCalculator, RandomProvider randomProvider) {
+        this(damageCalculator, randomProvider, new StatusEffectResolver());
+    }
+
+    public TurnResolver(DamageCalculator damageCalculator, RandomProvider randomProvider,
+                        StatusEffectResolver statusEffectResolver) {
         this.damageCalculator = damageCalculator;
         this.randomProvider = randomProvider;
+        this.statusEffectResolver = statusEffectResolver;
     }
 
     public List<String> resolveAction(Character actor, ActionChoice choice) {
+        return resolveAction(actor, choice, null);
+    }
+
+    public List<String> resolveAction(Character actor, ActionChoice choice, BattleContext context) {
         List<String> log = new ArrayList<>();
 
         if (!canAct(actor, log)) {
@@ -29,24 +41,45 @@ public class TurnResolver {
         log.add(actor.getName() + " uses " + move.getName() + "!");
 
         for (Character target : choice.getTargets()) {
-            resolveHitOnTarget(actor, move, target, log);
+            resolveHitOnTarget(actor, move, target, context, log);
+        }
+
+        for (Passive passive : actor.getPassives()) {
+            passive.onActionResolved(actor, move, choice.getTargets(), context, log);
         }
 
         return log;
     }
 
-    private void resolveHitOnTarget(Character actor, Move move, Character target, List<String> log) {
-        int effectiveAccuracy = move.getAccuracy();
+    private void resolveHitOnTarget(Character actor, Move move, Character target,
+                                     BattleContext context, List<String> log) {
+        int attackerAccuracy = move.getAccuracy();
         for (Passive passive : actor.getPassives()) {
-            effectiveAccuracy = passive.modifyAccuracy(actor, move, effectiveAccuracy);
+            attackerAccuracy = passive.modifyAccuracy(actor, target, move, attackerAccuracy);
         }
+        int effectiveAccuracy = attackerAccuracy;
+        if (!move.targetsAllies()) {
+            for (Passive passive : target.getPassives()) {
+                effectiveAccuracy = passive.modifyIncomingAccuracy(target, actor, move, effectiveAccuracy);
+            }
+        }
+        effectiveAccuracy = Math.max(0, Math.min(100, effectiveAccuracy));
 
         boolean hits = randomProvider.nextInt(1, 100) <= effectiveAccuracy;
         if (!hits) {
-            log.add("Missed " + target.getName() + "!");
+            if (effectiveAccuracy < attackerAccuracy) {
+                log.add(target.getName() + " dodges the attack!");
+            } else {
+                log.add("Missed " + target.getName() + "!");
+            }
             for (Passive passive : actor.getPassives()) {
                 passive.onAttackMissed(actor, move, log);
             }
+            return;
+        }
+
+        if (move.targetsAllies()) {
+            resolveAllyMove(actor, move, target, log);
             return;
         }
 
@@ -64,6 +97,13 @@ public class TurnResolver {
         for (Passive passive : target.getPassives()) {
             damage = passive.modifyIncomingDamage(target, actor, move, damage, log);
         }
+        if (context != null) {
+            for (Character ally : context.alliesOf(target)) {
+                for (Passive passive : ally.getPassives()) {
+                    damage = passive.modifyIncomingDamageToAlly(ally, target, actor, move, damage, log);
+                }
+            }
+        }
 
         int finalDamage = (int) Math.round(Math.max(0, damage));
         if (finalDamage > 0) {
@@ -73,14 +113,17 @@ public class TurnResolver {
                 passive.onDamageTaken(target, actor, actualDamage, log);
             }
             
-            tryApplyStatus(move, target, log);
+            tryApplyStatus(move, actor, target, log);
             
             for (Passive passive : actor.getPassives()) {
-                passive.onHitLanded(actor, target, move, finalDamage, isCrit, log);
+                passive.onHitLanded(actor, target, move, finalDamage, isCrit, log, context);
             }
-            
+
+            statusEffectResolver.applyLeechOnDamage(actor, move, actualDamage, log);
+
             if (target.isFainted()) {
                 log.add(target.getName() + " has fainted!");
+                statusEffectResolver.applyOnFaintEffects(target, actor, log);
             }
         }
     }
@@ -98,8 +141,30 @@ public class TurnResolver {
         return true;
     }
 
-    private void tryApplyStatus(Move move, Character target, List<String> log) {
-        if (move.getInflictedStatus() == Status.NONE || target.getStatus() != Status.NONE) {
+    private void resolveAllyMove(Character actor, Move move, Character target, List<String> log) {
+        if (move.getInflictedStatus() == Status.HEAL) {
+            int before = target.getStats().getCurrentHp();
+            statusEffectResolver.applyHeal(target, log);
+            int healed = target.getStats().getCurrentHp() - before;
+            for (Passive passive : actor.getPassives()) {
+                passive.onAllyHealed(actor, target, healed, log);
+            }
+        }
+    }
+
+    private void tryApplyStatus(Move move, Character actor, Character target, List<String> log) {
+        Status status = move.getInflictedStatus();
+        if (status == Status.NONE || status == Status.HEAL || status == Status.LEECH) {
+            return;
+        }
+        if (status == Status.SIPHON) {
+            if (randomProvider.nextInt(1, 100) <= move.getStatusChance()) {
+                target.applySiphon(actor, status.getDefaultDurationTurns());
+                log.add(target.getName() + " is being siphoned!");
+            }
+            return;
+        }
+        if (target.getStatus() != Status.NONE) {
             return;
         }
         if (randomProvider.nextInt(1, 100) <= move.getStatusChance()) {

@@ -59,4 +59,8 @@ public class Move {
     public int getStatusChance() { 
     	return statusChance; 
     }
+
+    public boolean targetsAllies() {
+        return inflictedStatus.targetsAllies();
+    }
 }

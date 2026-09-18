@@ -43,10 +43,10 @@ public class Stats {
     public int getSpeed() { return speed; }
 
     // Permanent stat growth, used by passives (e.g. Caveman's Frenzy) and,
-    // later, leveling. Speed intentionally has no increase method here —
-    // Caveman's passive design says his speed never grows.
+    // later, leveling. Speed is clamped to at least 1 so turn delay stays defined.
     public void increaseAttack(int amount) { this.attack += amount; }
     public void increaseDefense(int amount) { this.defense += amount; }
     public void increaseMagicAttack(int amount) { this.magicAttack += amount; }
     public void increaseMagicDefense(int amount) { this.magicDefense += amount; }
+    public void increaseSpeed(int amount) { this.speed = Math.max(1, this.speed + amount); }
 }

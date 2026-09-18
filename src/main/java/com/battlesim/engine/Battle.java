@@ -1,12 +1,16 @@
 package com.battlesim.engine;
 
+import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Passive;
 import com.battlesim.model.Team;
+import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Battle {
+public class Battle implements BattleContext {
+
+    public static final int DEFAULT_MAX_ACTIONS = 200;
 
     private final Team teamA;
     private final Team teamB;
@@ -15,12 +19,24 @@ public class Battle {
     private final TurnResolver turnResolver;
     private final StatusEffectResolver statusEffectResolver;
     private final TurnOrderScheduler scheduler;
+    private final int maxActions;
+    private final boolean verbose;
 
     public Battle(Team teamA, Team teamB,
                    MoveSelector selectorA, MoveSelector selectorB,
                    TurnResolver turnResolver,
                    StatusEffectResolver statusEffectResolver,
                    TurnOrderScheduler scheduler) {
+        this(teamA, teamB, selectorA, selectorB, turnResolver, statusEffectResolver,
+                scheduler, DEFAULT_MAX_ACTIONS, true);
+    }
+
+    public Battle(Team teamA, Team teamB,
+                   MoveSelector selectorA, MoveSelector selectorB,
+                   TurnResolver turnResolver,
+                   StatusEffectResolver statusEffectResolver,
+                   TurnOrderScheduler scheduler,
+                   int maxActions, boolean verbose) {
         this.teamA = teamA;
         this.teamB = teamB;
         this.selectorA = selectorA;
@@ -28,10 +44,31 @@ public class Battle {
         this.turnResolver = turnResolver;
         this.statusEffectResolver = statusEffectResolver;
         this.scheduler = scheduler;
+        this.maxActions = maxActions;
+        this.verbose = verbose;
     }
 
-    public void run() {
-        while (teamA.hasAnyAlive() && teamB.hasAnyAlive()) {
+    /** Wires TypeChart / damage / turns / scheduler from a shared RNG. */
+    public static Battle create(Team teamA, Team teamB,
+                                MoveSelector selectorA, MoveSelector selectorB,
+                                RandomProvider random, int maxActions, boolean verbose) {
+        TypeChart typeChart = new TypeChart();
+        DamageCalculator damageCalculator = new DamageCalculator(typeChart, random);
+        StatusEffectResolver statusEffectResolver = new StatusEffectResolver();
+        TurnResolver turnResolver = new TurnResolver(damageCalculator, random, statusEffectResolver);
+        List<Character> allCombatants = new ArrayList<>();
+        allCombatants.addAll(teamA.getMembers());
+        allCombatants.addAll(teamB.getMembers());
+        TurnOrderScheduler scheduler = new TurnOrderScheduler(allCombatants, random);
+        return new Battle(teamA, teamB, selectorA, selectorB, turnResolver,
+                statusEffectResolver, scheduler, maxActions, verbose);
+    }
+
+    public BattleResult run() {
+        List<String> fullLog = new ArrayList<>();
+        int actionCount = 0;
+
+        while (teamA.hasAnyAlive() && teamB.hasAnyAlive() && actionCount < maxActions) {
             Character actor = scheduler.getNextActor();
             if (actor == null) {
                 break;
@@ -39,6 +76,7 @@ public class Battle {
 
             boolean actorOnTeamA = teamA.getMembers().contains(actor);
             List<Character> enemies = actorOnTeamA ? teamB.getMembers() : teamA.getMembers();
+            List<Character> allies = actorOnTeamA ? teamA.getMembers() : teamB.getMembers();
             MoveSelector selector = actorOnTeamA ? selectorA : selectorB;
 
             List<Character> livingEnemies = targetableOnly(enemies);
@@ -50,15 +88,104 @@ public class Battle {
                 livingEnemies = anyoneAlive;
             }
 
-            ActionChoice choice = selector.chooseAction(actor, livingEnemies);
-            List<String> log = turnResolver.resolveAction(actor, choice);
+            List<Character> livingAllies = aliveOnly(allies);
+            ActionChoice choice = selector.chooseAction(actor, livingEnemies, livingAllies);
+            List<String> log = turnResolver.resolveAction(actor, choice, this);
             statusEffectResolver.applyEndOfTurnEffects(actor, log);
-            log.forEach(System.out::println);
+            faintOrphanSummons(log);
+            fullLog.addAll(log);
+            if (verbose) {
+                log.forEach(System.out::println);
+            }
 
             scheduler.advanceActor(actor);
+            actionCount++;
         }
 
-        announceResult();
+        BattleResult.Winner winner = determineWinner();
+        if (verbose) {
+            announceResult(winner);
+        }
+
+        return new BattleResult(winner, actionCount, snapshotFighters(), fullLog);
+    }
+
+    private BattleResult.Winner determineWinner() {
+        boolean aAlive = teamA.hasAnyAlive();
+        boolean bAlive = teamB.hasAnyAlive();
+        if (aAlive && bAlive) {
+            return BattleResult.Winner.TIMEOUT;
+        }
+        if (aAlive) {
+            return BattleResult.Winner.TEAM_A;
+        }
+        if (bAlive) {
+            return BattleResult.Winner.TEAM_B;
+        }
+        return BattleResult.Winner.DRAW;
+    }
+
+    @Override
+    public List<Character> alliesOf(Character character) {
+        if (teamA.getMembers().contains(character)) {
+            return teamA.getMembers();
+        }
+        return teamB.getMembers();
+    }
+
+    @Override
+    public List<Character> enemiesOf(Character character) {
+        if (teamA.getMembers().contains(character)) {
+            return teamB.getMembers();
+        }
+        return teamA.getMembers();
+    }
+
+    @Override
+    public void summonAlly(Character summoner, Character summon, List<String> log) {
+        summon.setSummoner(summoner);
+        if (teamA.getMembers().contains(summoner)) {
+            teamA.addMember(summon);
+        } else {
+            teamB.addMember(summon);
+        }
+        scheduler.addCombatant(summon);
+        log.add(summoner.getName() + " summons " + summon.getName() + "!");
+    }
+
+    private void faintOrphanSummons(List<String> log) {
+        faintOrphansOn(teamA, log);
+        faintOrphansOn(teamB, log);
+    }
+
+    private void faintOrphansOn(Team team, List<String> log) {
+        for (Character member : team.getMembers()) {
+            if (!member.isSummon() || member.isFainted()) {
+                continue;
+            }
+            Character owner = member.getSummoner();
+            if (owner == null || owner.isFainted()) {
+                member.getStats().applyDamage(member.getStats().getCurrentHp());
+                log.add(member.getName() + " fades away!");
+            }
+        }
+    }
+
+    private List<BattleResult.FighterSnapshot> snapshotFighters() {
+        List<BattleResult.FighterSnapshot> snapshots = new ArrayList<>();
+        for (Character character : teamA.getMembers()) {
+            snapshots.add(new BattleResult.FighterSnapshot(
+                    "A", character.getName(),
+                    character.getStats().getCurrentHp(),
+                    character.getStats().getMaxHp()));
+        }
+        for (Character character : teamB.getMembers()) {
+            snapshots.add(new BattleResult.FighterSnapshot(
+                    "B", character.getName(),
+                    character.getStats().getCurrentHp(),
+                    character.getStats().getMaxHp()));
+        }
+        return snapshots;
     }
 
     private List<Character> aliveOnly(List<Character> characters) {
@@ -88,13 +215,20 @@ public class Battle {
         return targetable;
     }
 
-    private void announceResult() {
-        if (teamA.hasAnyAlive()) {
-            System.out.println("Team A wins!");
-        } else if (teamB.hasAnyAlive()) {
-            System.out.println("Team B wins!");
-        } else {
-            System.out.println("It's a draw — both teams were wiped!");
+    private void announceResult(BattleResult.Winner winner) {
+        switch (winner) {
+            case TEAM_A:
+                System.out.println("Team A wins!");
+                break;
+            case TEAM_B:
+                System.out.println("Team B wins!");
+                break;
+            case TIMEOUT:
+                System.out.println("Battle timed out — no winner.");
+                break;
+            default:
+                System.out.println("It's a draw — both teams were wiped!");
+                break;
         }
     }
 }

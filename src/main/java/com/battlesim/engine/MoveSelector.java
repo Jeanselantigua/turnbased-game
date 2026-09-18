@@ -9,5 +9,5 @@ import java.util.List;
  * an AI opponent (picks randomly or by some strategy).
  */
 public interface MoveSelector {
-    ActionChoice chooseAction(Character actor, List<Character> enemyTeam);
+    ActionChoice chooseAction(Character actor, List<Character> enemyTeam, List<Character> allyTeam);
 }
