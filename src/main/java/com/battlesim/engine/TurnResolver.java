@@ -72,16 +72,17 @@ public class TurnResolver {
             for (Passive passive : target.getPassives()) {
                 passive.onDamageTaken(target, actor, actualDamage, log);
             }
+            
+            tryApplyStatus(move, target, log);
+            
+            for (Passive passive : actor.getPassives()) {
+                passive.onHitLanded(actor, target, move, finalDamage, isCrit, log);
+            }
+            
             if (target.isFainted()) {
                 log.add(target.getName() + " has fainted!");
             }
         }
-
-        for (Passive passive : actor.getPassives()) {
-            passive.onHitLanded(actor, target, move, finalDamage, isCrit, log);
-        }
-
-        tryApplyStatus(move, target, log);
     }
 
     private boolean canAct(Character actor, List<String> log) {

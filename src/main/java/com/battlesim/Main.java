@@ -31,9 +31,10 @@ public class Main {
         Character rogue = PlayableCharacters.rogue().createInstance();
         Character monk = PlayableCharacters.monk().createInstance();
         Character caveman = PlayableCharacters.caveman().createInstance();
+        Character chefromancer = PlayableCharacters.chefromancer().createInstance();
 
-        Team playerTeam = new Team(List.of(rogue, monk));
-        Team enemyTeam = new Team(List.of(knight, caveman));
+        Team playerTeam = new Team(List.of(chefromancer, rogue));
+        Team enemyTeam = new Team(List.of(knight, caveman, monk));
 
         // Player-controlled: choose a move from console, then a target from console.
         MoveSelector consoleSelector = (actor, enemies) -> {

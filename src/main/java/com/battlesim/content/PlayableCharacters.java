@@ -25,7 +25,7 @@ public class PlayableCharacters {
     }
 
     public static CharacterTemplate rogue() {
-        Move backstab = new Move("Assasinate", Type.PHYSICAL, 60, 80, 1, false, Status.NONE, 0);
+        Move backstab = new Move("BackStab", Type.PHYSICAL, 60, 90, 1, false, Status.NONE, 0);
         Move crossbow = new Move("Crossbow", Type.PHYSICAL, 90, 90, 0, false, Status.NONE, 0);
         
         
@@ -48,6 +48,14 @@ public class PlayableCharacters {
         
         return new CharacterTemplate("Randy", 200, 70, 60, 0, 35, 25,
                 Type.PHYSICAL, List.of(club),
+                List.of(CavemanFrenzyPassive::new, CavemanAccuracyCreepPassive::new));
+    }
+    
+    public static CharacterTemplate chefromancer() {
+        Move club = new Move("Night of the living Bread", Type.PHYSICAL, 60, 90, 0, true, Status.STUN, 40);
+        
+        return new CharacterTemplate("Chefromancer", 175, 21, -15 , 57, 25, 22,
+                Type.UNDEAD, List.of(club),
                 List.of(CavemanFrenzyPassive::new, CavemanAccuracyCreepPassive::new));
     }
 }
