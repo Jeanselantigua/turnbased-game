@@ -1,5 +1,7 @@
 package com.battlesim.model;
 
+import java.util.List;
+
 /**
  * A single action a Character can take on their turn.
  * Kept intentionally simple for Phase 1 — no branching effects yet,
@@ -73,6 +75,17 @@ public class Move {
 
     public boolean targetsAllies() {
         return inflictedStatus.targetsAllies();
+    }
+
+    public boolean targetsSelfOnly() {
+        return inflictedStatus.targetsSelfOnly();
+    }
+
+    public List<Character> legalTargets(Character actor, List<Character> allies, List<Character> enemies) {
+        if (targetsSelfOnly()) {
+            return List.of(actor);
+        }
+        return targetsAllies() ? allies : enemies;
     }
 
     public boolean isDebuffCategory() {

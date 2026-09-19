@@ -13,7 +13,10 @@ public enum Status {
     AFTERMATH,  // e.g. 15% max health dmg on death
     PARALYSIS,  // e.g. chance to skip a turn
     STUN,        // e.g. guaranteed skip next turn
+    SLOW,       // e.g. halved speed for 3 turns
     HEAL,       // e.g. heal for a percentage of the target's max health
+    SHIELD,     // grant a shield equal to the move's power to an ally (including self)
+    SELF_SHIELD, // grant a shield equal to the move's power to the caster only
     LEECH,      // e.g. 15% of damage dealt is converted to health
     SIPHON,     // DoT on the target; a portion heals the caster each tick
     UTILITY,    // Self/ally no-op (e.g. Recover). Not a combat status.
@@ -35,6 +38,8 @@ public enum Status {
                 return 3;
             case PARALYSIS:
                 return 3;
+            case SLOW:
+                return 3;
             case SIPHON:
                 return 3;
             default:
@@ -42,9 +47,14 @@ public enum Status {
         }
     }
 
-    /** HEAL and UTILITY target living allies (including self). */
+    /** Friendly moves: heals, shields, and utility. Includes self-only shields. */
     public boolean targetsAllies() {
-        return this == HEAL || this == UTILITY;
+        return this == HEAL || this == SHIELD || this == SELF_SHIELD || this == UTILITY;
+    }
+
+    /** True for moves that may only target the caster. */
+    public boolean targetsSelfOnly() {
+        return this == SELF_SHIELD;
     }
 
     /** Harmful combat statuses used to classify "debuff-category" moves. */
@@ -56,6 +66,7 @@ public enum Status {
             case CURSED:
             case PARALYSIS:
             case STUN:
+            case SLOW:
             case SIPHON:
                 return true;
             default:

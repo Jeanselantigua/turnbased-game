@@ -26,6 +26,16 @@ public interface Passive {
     default void onAllyHealed(Character self, Character target, int amount, List<String> log) {
     }
 
+    default void onShielded(Character self, int amount, List<String> log) {
+    }
+
+    default void onAllyShielded(Character self, Character target, int amount, List<String> log) {
+    }
+
+    /** Called when this character's shield HP is reduced to 0. */
+    default void onShieldBroken(Character self, Character attacker, BattleContext context, List<String> log) {
+    }
+
     default double modifyIncomingDamageToAlly(Character self, Character ally, Character attacker,
                                                Move move, double damage, List<String> log) {
         return damage;
@@ -113,7 +123,18 @@ public interface Passive {
         return moves;
     }
 
-    default boolean forcesTeamLoss(Character self, BattleContext context) {
-        return false;
+    /**
+     * Called after each action so a passive can react to the current field
+     * (e.g. a fallen ally interrupting a channel). Must not end the battle.
+     */
+    default void onFieldChanged(Character self, BattleContext context, List<String> log) {
+    }
+
+    /** Called after this character's HP hits 0. {@code move} may be null for DoT deaths. */
+    default void onFaint(Character self, Character killer, Move move, BattleContext context, List<String> log) {
+    }
+
+    /** Called on the living killer after {@code victim} faints. {@code move} may be null for DoT deaths. */
+    default void onKill(Character self, Character victim, Move move, BattleContext context, List<String> log) {
     }
 }

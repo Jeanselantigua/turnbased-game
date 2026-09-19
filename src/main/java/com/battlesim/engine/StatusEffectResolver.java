@@ -1,13 +1,15 @@
 package com.battlesim.engine;
 
+import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
 import com.battlesim.model.Status;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Applies status effects: start-of-turn DoT, aftermath on death, ally heal, and leech lifesteal.
+ * Applies status effects: start-of-turn DoT, aftermath on death, ally heal/shield, and leech lifesteal.
  */
 public class StatusEffectResolver {
 
@@ -22,16 +24,28 @@ public class StatusEffectResolver {
     private static final double SIPHON_HEAL_PERCENT = 0.50;
 
     public void applyStartOfTurnEffects(Character character, List<String> log) {
+        applyStartOfTurnEffects(character, log, null);
+    }
+
+    public void applyStartOfTurnEffects(Character character, List<String> log, BattleContext context) {
         if (character.isFainted()) {
             return;
         }
 
-        applySiphonTick(character, log);
+        applySiphonTick(character, log, context);
         if (character.isFainted()) {
             return;
         }
 
         Status status = character.getStatus();
+        if (status == Status.SLOW) {
+            character.decrementStatusDuration();
+            if (character.getStatus() == Status.NONE) {
+                log.add(character.getName() + " is no longer slowed!");
+            }
+            return;
+        }
+
         int damage;
 
         switch (status) {
@@ -52,10 +66,13 @@ public class StatusEffectResolver {
         }
 
         if (damage > 0) {
-            int actualDamage = character.getStats().applyDamage(damage);
-            log.add(character.getName() + " takes " + actualDamage + " damage from " + status.toString().toLowerCase() + "!");
+            int actualDamage = applyDamageThroughShield(character, null, damage, context, log);
+            if (actualDamage > 0) {
+                log.add(character.getName() + " takes " + actualDamage + " damage from " + status.toString().toLowerCase() + "!");
+            }
             if (character.isFainted()) {
                 log.add(character.getName() + " has fainted!");
+                notifyFaint(character, null, null, context, log);
             }
         }
 
@@ -85,15 +102,17 @@ public class StatusEffectResolver {
         }
     }
 
-    private void applySiphonTick(Character character, List<String> log) {
+    private void applySiphonTick(Character character, List<String> log, BattleContext context) {
         if (!character.isSiphoned()) {
             return;
         }
 
         int damage = (int) Math.round(character.getStats().getMaxHp() * SIPHON_PERCENT_MAX_HP);
         if (damage > 0) {
-            int actualDamage = character.getStats().applyDamage(damage);
-            log.add(character.getName() + " takes " + actualDamage + " damage from siphon!");
+            int actualDamage = applyDamageThroughShield(character, character.getSiphonSource(), damage, context, log);
+            if (actualDamage > 0) {
+                log.add(character.getName() + " takes " + actualDamage + " damage from siphon!");
+            }
             Character source = character.getSiphonSource();
             if (source != null && !source.isFainted()) {
                 int stolen = (int) Math.round(actualDamage * SIPHON_HEAL_PERCENT);
@@ -109,12 +128,33 @@ public class StatusEffectResolver {
             }
             if (character.isFainted()) {
                 log.add(character.getName() + " has fainted!");
+                notifyFaint(character, source, null, context, log);
             }
         }
 
         character.decrementSiphonDuration();
         if (!character.isSiphoned()) {
             log.add(character.getName() + " is no longer siphoned!");
+        }
+    }
+
+    /**
+     * Notifies passives of a faint, then applies aftermath (which may faint the killer).
+     */
+    public void notifyFaint(Character fainted, Character killer, Move move,
+                            BattleContext context, List<String> log) {
+        for (Passive passive : new ArrayList<>(fainted.getPassives())) {
+            passive.onFaint(fainted, killer, move, context, log);
+        }
+        boolean killerWasAlive = killer != null && !killer.isFainted();
+        if (killerWasAlive && killer != fainted) {
+            for (Passive passive : new ArrayList<>(killer.getPassives())) {
+                passive.onKill(killer, fainted, move, context, log);
+            }
+        }
+        applyOnFaintEffects(fainted, killer, log);
+        if (killerWasAlive && killer.isFainted()) {
+            notifyFaint(killer, fainted, null, context, log);
         }
     }
 
@@ -135,9 +175,11 @@ public class StatusEffectResolver {
             return;
         }
 
-        int actualDamage = killer.getStats().applyDamage(damage);
-        log.add(killer.getName() + " takes " + actualDamage + " damage from "
-                + fainted.getName() + "'s aftermath!");
+        int actualDamage = applyDamageThroughShield(killer, fainted, damage, null, log);
+        if (actualDamage > 0) {
+            log.add(killer.getName() + " takes " + actualDamage + " damage from "
+                    + fainted.getName() + "'s aftermath!");
+        }
         if (killer.isFainted()) {
             log.add(killer.getName() + " has fainted!");
         }
@@ -148,6 +190,41 @@ public class StatusEffectResolver {
         int healed = healUpToMax(target, amount);
         log.add(target.getName() + " recovers " + healed + " HP!");
         notifyHealed(target, healed, log);
+    }
+
+    /** Grants a shield equal to the SHIELD move's power. Replaces any existing shield. */
+    public void applyShield(Character target, int amount, List<String> log) {
+        if (amount <= 0) {
+            return;
+        }
+        target.getStats().grantShield(amount);
+        log.add(target.getName() + " gains a " + amount + " HP shield!");
+        for (Passive passive : target.getPassives()) {
+            passive.onShielded(target, amount, log);
+        }
+    }
+
+    /**
+     * Shield absorbs incoming damage first. Returns HP actually lost.
+     * Notifies {@link Passive#onShieldBroken} when the shield hits 0.
+     */
+    public int applyDamageThroughShield(Character character, Character attacker, int amount,
+                                         BattleContext context, List<String> log) {
+        int absorbed = character.getStats().absorbWithShield(amount);
+        if (absorbed > 0) {
+            log.add(character.getName() + "'s shield absorbs " + absorbed + " damage!");
+            if (!character.getStats().hasShield()) {
+                log.add(character.getName() + "'s shield shatters!");
+                for (Passive passive : new ArrayList<>(character.getPassives())) {
+                    passive.onShieldBroken(character, attacker, context, log);
+                }
+            }
+        }
+        int leftover = amount - absorbed;
+        if (leftover <= 0) {
+            return 0;
+        }
+        return character.getStats().applyDamage(leftover);
     }
 
     public void applyLeechOnDamage(Character attacker, Move move, int damageDealt, List<String> log) {

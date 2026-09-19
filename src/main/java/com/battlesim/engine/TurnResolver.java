@@ -124,23 +124,26 @@ public class TurnResolver {
         boolean blocked = damageBeforeIncoming > 0 && damage <= 0;
         int finalDamage = (int) Math.round(Math.max(0, damage));
         if (finalDamage > 0) {
-            int actualDamage = target.getStats().applyDamage(finalDamage);
-            log.add(target.getName() + " took " + actualDamage + " damage!" + (isCrit ? " Critical hit!" : ""));
-            for (Passive passive : target.getPassives()) {
-                passive.onDamageTaken(target, actor, actualDamage, log);
-            }
-            
-            tryApplyStatus(move, actor, target, log);
-            
-            for (Passive passive : actor.getPassives()) {
-                passive.onHitLanded(actor, target, move, finalDamage, isCrit, log, context);
-            }
+            int actualDamage = statusEffectResolver.applyDamageThroughShield(
+                    target, actor, finalDamage, context, log);
+            if (actualDamage > 0) {
+                log.add(target.getName() + " took " + actualDamage + " damage!" + (isCrit ? " Critical hit!" : ""));
+                for (Passive passive : target.getPassives()) {
+                    passive.onDamageTaken(target, actor, actualDamage, log);
+                }
+                
+                tryApplyStatus(move, actor, target, log);
+                
+                for (Passive passive : actor.getPassives()) {
+                    passive.onHitLanded(actor, target, move, actualDamage, isCrit, log, context);
+                }
 
-            statusEffectResolver.applyLeechOnDamage(actor, move, actualDamage, log);
+                statusEffectResolver.applyLeechOnDamage(actor, move, actualDamage, log);
 
-            if (target.isFainted()) {
-                log.add(target.getName() + " has fainted!");
-                statusEffectResolver.applyOnFaintEffects(target, actor, log);
+                if (target.isFainted()) {
+                    log.add(target.getName() + " has fainted!");
+                    statusEffectResolver.notifyFaint(target, actor, move, context, log);
+                }
             }
         }
 
@@ -171,11 +174,22 @@ public class TurnResolver {
                 passive.onAllyHealed(actor, target, healed, log);
             }
         }
+        Status status = move.getInflictedStatus();
+        if (status == Status.SHIELD || status == Status.SELF_SHIELD) {
+            Character shielded = status == Status.SELF_SHIELD ? actor : target;
+            statusEffectResolver.applyShield(shielded, move.getPower(), log);
+            if (status == Status.SHIELD) {
+                for (Passive passive : actor.getPassives()) {
+                    passive.onAllyShielded(actor, shielded, move.getPower(), log);
+                }
+            }
+        }
     }
 
     private void tryApplyStatus(Move move, Character actor, Character target, List<String> log) {
         Status status = move.getInflictedStatus();
-        if (status == Status.NONE || status == Status.HEAL || status == Status.LEECH) {
+        if (status == Status.NONE || status == Status.HEAL || status == Status.SHIELD
+                || status == Status.SELF_SHIELD || status == Status.LEECH) {
             return;
         }
         if (status == Status.SIPHON) {

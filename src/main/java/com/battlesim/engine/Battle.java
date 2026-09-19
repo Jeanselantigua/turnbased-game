@@ -22,7 +22,6 @@ public class Battle implements BattleContext {
     private final TurnOrderScheduler scheduler;
     private final int maxActions;
     private final boolean verbose;
-    private Character ritualFailedFor;
 
     public Battle(Team teamA, Team teamB,
                    MoveSelector selectorA, MoveSelector selectorB,
@@ -77,7 +76,7 @@ public class Battle implements BattleContext {
             }
 
             List<String> log = new ArrayList<>();
-            statusEffectResolver.applyStartOfTurnEffects(actor, log);
+            statusEffectResolver.applyStartOfTurnEffects(actor, log, this);
 
             if (!actor.isFainted()) {
                 actor.tickMoveCooldowns();
@@ -115,13 +114,7 @@ public class Battle implements BattleContext {
                 }
             }
             faintOrphanSummons(log);
-            if (checkRitualFailure(log)) {
-                fullLog.addAll(log);
-                if (verbose) {
-                    log.forEach(System.out::println);
-                }
-                break;
-            }
+            notifyFieldChanged(log);
             fullLog.addAll(log);
             if (verbose) {
                 log.forEach(System.out::println);
@@ -170,41 +163,20 @@ public class Battle implements BattleContext {
         return false;
     }
 
-    private boolean checkRitualFailure(List<String> log) {
-        for (Character character : teamA.getMembers()) {
-            if (ritualFailed(character, log)) {
-                ritualFailedFor = character;
-                return true;
-            }
-        }
-        for (Character character : teamB.getMembers()) {
-            if (ritualFailed(character, log)) {
-                ritualFailedFor = character;
-                return true;
-            }
-        }
-        return false;
+    private void notifyFieldChanged(List<String> log) {
+        notifyFieldChanged(teamA, log);
+        notifyFieldChanged(teamB, log);
     }
 
-    private boolean ritualFailed(Character character, List<String> log) {
-        for (Passive passive : character.getPassives()) {
-            if (passive.forcesTeamLoss(character, this)) {
-                log.add(character.getName() + "'s Perfect Enlightenment fails as their ally falls!");
-                return true;
+    private void notifyFieldChanged(Team team, List<String> log) {
+        for (Character character : team.getMembers()) {
+            for (Passive passive : new ArrayList<>(character.getPassives())) {
+                passive.onFieldChanged(character, this, log);
             }
         }
-        return false;
     }
 
     private BattleResult.Winner determineWinner() {
-        if (ritualFailedFor != null) {
-            if (teamA.getMembers().contains(ritualFailedFor)) {
-                return BattleResult.Winner.TEAM_B;
-            }
-            if (teamB.getMembers().contains(ritualFailedFor)) {
-                return BattleResult.Winner.TEAM_A;
-            }
-        }
         boolean aAlive = teamA.hasAnyAlive();
         boolean bAlive = teamB.hasAnyAlive();
         if (aAlive && bAlive) {
@@ -238,13 +210,29 @@ public class Battle implements BattleContext {
     @Override
     public void summonAlly(Character summoner, Character summon, List<String> log) {
         summon.setSummoner(summoner);
-        if (teamA.getMembers().contains(summoner)) {
-            teamA.addMember(summon);
-        } else {
-            teamB.addMember(summon);
-        }
+        addToSummonerTeam(summoner, summon);
         scheduler.addCombatant(summon);
         log.add(summoner.getName() + " summons " + summon.getName() + "!");
+    }
+
+    @Override
+    public void addAlly(Character allyOf, Character newMember, List<String> log) {
+        addToSummonerTeam(allyOf, newMember);
+        scheduler.addCombatant(newMember);
+        log.add(newMember.getName() + " rises to fight for " + allyOf.getName() + "'s team!");
+    }
+
+    @Override
+    public void notifyFaint(Character fainted, Character killer, Move move, List<String> log) {
+        statusEffectResolver.notifyFaint(fainted, killer, move, this, log);
+    }
+
+    private void addToSummonerTeam(Character allyOf, Character newMember) {
+        if (teamA.getMembers().contains(allyOf)) {
+            teamA.addMember(newMember);
+        } else {
+            teamB.addMember(newMember);
+        }
     }
 
     private void faintOrphanSummons(List<String> log) {

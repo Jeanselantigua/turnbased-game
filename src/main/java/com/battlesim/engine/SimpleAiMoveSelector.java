@@ -1,23 +1,28 @@
 package com.battlesim.engine;
 
+import com.battlesim.content.passives.MonkPerfectEnlightenmentPassive;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
+import com.battlesim.model.Status;
 import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lightweight AI for balance sims: recover when angered, finish Blessed
- * targets, heal an injured ally when possible, otherwise a random damaging
- * move aimed at the lowest-HP legal target.
+ * Lightweight AI for balance sims: recover when angered only if the foe is
+ * already low, finish Blessed targets, start Perfect Enlightenment after
+ * real 1v1 hits (or when allies are healthy), heal an injured ally when
+ * possible, otherwise a random damaging move aimed at the lowest-HP legal target.
  */
 public class SimpleAiMoveSelector implements MoveSelector {
 
     private static final double HEAL_THRESHOLD = 0.40;
     private static final double RITUAL_ALLY_SAFE_HP = 0.50;
-    private static final String RECOVER_MOVE = "Recover";
-    private static final String ENLIGHTENMENT_MOVE = "Perfect Enlightenment";
-    private static final int BLESSED_CAP = 5;
+    private static final double SOLO_CHANNEL_MIN_HP = 0.55;
+    private static final double ANGERED_RECOVER_HP = 0.25;
+    private static final String RECOVER_MOVE = MonkPerfectEnlightenmentPassive.RECOVER_NAME;
+    private static final String ENLIGHTENMENT_MOVE = MonkPerfectEnlightenmentPassive.MOVE_NAME;
+    private static final String SWING_MOVE = MonkPerfectEnlightenmentPassive.SWING_NAME;
 
     private final RandomProvider random;
 
@@ -28,10 +33,11 @@ public class SimpleAiMoveSelector implements MoveSelector {
     @Override
     public ActionChoice chooseAction(Character actor, List<Move> availableMoves,
                                       List<Character> enemyTeam, List<Character> allyTeam) {
-        List<Move> moves = availableMoves.isEmpty() ? actor.getMoves() : availableMoves;
+        List<Move> moves = availableMoves;
 
         Move recover = findMove(moves, RECOVER_MOVE);
-        if (recover != null) {
+        Move swing = findMove(moves, SWING_MOVE);
+        if (recover != null && (swing == null || shouldRecoverFromAnger(enemyTeam))) {
             return new ActionChoice(recover, List.of(actor));
         }
 
@@ -41,7 +47,7 @@ public class SimpleAiMoveSelector implements MoveSelector {
             if (capped != null) {
                 return new ActionChoice(enlightenment, List.of(capped));
             }
-            if (!ritualLooksRisky(actor, allyTeam)) {
+            if (shouldStartRitual(actor, allyTeam)) {
                 return new ActionChoice(enlightenment, List.of(lowestHp(enemyTeam)));
             }
         }
@@ -52,7 +58,19 @@ public class SimpleAiMoveSelector implements MoveSelector {
             return new ActionChoice(heal, List.of(injuredAlly));
         }
 
+        Move selfShield = findSelfShieldMove(moves);
+        if (selfShield != null && !actor.getStats().hasShield()) {
+            return new ActionChoice(selfShield, List.of(actor));
+        }
+
+        Move shield = findShieldMove(moves);
+        Character unshieldedAlly = lowestHpWithoutShield(allyTeam);
+        if (shield != null && unshieldedAlly != null) {
+            return new ActionChoice(shield, List.of(unshieldedAlly));
+        }
+
         List<Move> attacks = nonHealMoves(moves);
+        attacks.removeIf(move -> ENLIGHTENMENT_MOVE.equals(move.getName()));
         Move chosen;
         if (!attacks.isEmpty()) {
             chosen = attacks.get(random.nextInt(0, attacks.size() - 1));
@@ -60,13 +78,28 @@ public class SimpleAiMoveSelector implements MoveSelector {
             chosen = moves.get(0);
         }
 
-        List<Character> pool = chosen.targetsAllies() ? allyTeam : enemyTeam;
+        List<Character> pool = chosen.legalTargets(actor, allyTeam, enemyTeam);
         return new ActionChoice(chosen, List.of(lowestHp(pool)));
+    }
+
+    private static boolean shouldStartRitual(Character actor, List<Character> allyTeam) {
+        if (ritualLooksRisky(actor, allyTeam)) {
+            return false;
+        }
+        if (hasLivingAlly(actor, allyTeam)) {
+            return true;
+        }
+        if (actor.getStats().getCurrentHp()
+                < SOLO_CHANNEL_MIN_HP * actor.getStats().getMaxHp()) {
+            return false;
+        }
+        MonkPerfectEnlightenmentPassive pe = actor.getPassive(MonkPerfectEnlightenmentPassive.class);
+        return pe != null && pe.getIdleHitsLanded() >= MonkPerfectEnlightenmentPassive.SOLO_CHANNEL_MIN_HITS;
     }
 
     private static boolean ritualLooksRisky(Character actor, List<Character> allyTeam) {
         for (Character ally : allyTeam) {
-            if (ally == actor || ally.isFainted()) {
+            if (ally == actor || ally.isFainted() || ally.isSummon()) {
                 continue;
             }
             if (ally.getStats().getCurrentHp() < RITUAL_ALLY_SAFE_HP * ally.getStats().getMaxHp()) {
@@ -76,10 +109,28 @@ public class SimpleAiMoveSelector implements MoveSelector {
         return false;
     }
 
+    private static boolean hasLivingAlly(Character actor, List<Character> allyTeam) {
+        for (Character ally : allyTeam) {
+            if (ally != actor && !ally.isFainted() && !ally.isSummon()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean shouldRecoverFromAnger(List<Character> enemyTeam) {
+        Character lowest = lowestHp(enemyTeam);
+        if (lowest == null || lowest.isFainted()) {
+            return true;
+        }
+        return lowest.getStats().getCurrentHp()
+                <= ANGERED_RECOVER_HP * lowest.getStats().getMaxHp();
+    }
+
     private static Character firstAtBlessedCap(List<Character> enemies) {
         for (Character enemy : enemies) {
             if (!enemy.isFainted()
-                    && enemy.getBlessedStacks() >= BLESSED_CAP) {
+                    && enemy.getBlessedStacks() >= MonkPerfectEnlightenmentPassive.BLESSED_CAP) {
                 return enemy;
             }
         }
@@ -97,7 +148,25 @@ public class SimpleAiMoveSelector implements MoveSelector {
 
     private static Move findHealMove(List<Move> moves) {
         for (Move move : moves) {
-            if (move.targetsAllies()) {
+            if (move.getInflictedStatus() == Status.HEAL) {
+                return move;
+            }
+        }
+        return null;
+    }
+
+    private static Move findShieldMove(List<Move> moves) {
+        for (Move move : moves) {
+            if (move.getInflictedStatus() == Status.SHIELD) {
+                return move;
+            }
+        }
+        return null;
+    }
+
+    private static Move findSelfShieldMove(List<Move> moves) {
+        for (Move move : moves) {
+            if (move.getInflictedStatus() == Status.SELF_SHIELD) {
                 return move;
             }
         }
@@ -118,6 +187,19 @@ public class SimpleAiMoveSelector implements MoveSelector {
         Character lowest = null;
         for (Character character : characters) {
             if (character.getStats().getCurrentHp() >= hpFraction * character.getStats().getMaxHp()) {
+                continue;
+            }
+            if (lowest == null || character.getStats().getCurrentHp() < lowest.getStats().getCurrentHp()) {
+                lowest = character;
+            }
+        }
+        return lowest;
+    }
+
+    private static Character lowestHpWithoutShield(List<Character> characters) {
+        Character lowest = null;
+        for (Character character : characters) {
+            if (character.isFainted() || character.getStats().hasShield()) {
                 continue;
             }
             if (lowest == null || character.getStats().getCurrentHp() < lowest.getStats().getCurrentHp()) {

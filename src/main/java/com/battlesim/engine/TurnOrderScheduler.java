@@ -27,7 +27,7 @@ public class TurnOrderScheduler {
     }
 
     private double delayFor(Character character) {
-        return BASE_TICKS / character.getStats().getSpeed();
+        return BASE_TICKS / character.getEffectiveSpeed();
     }
 
     /** Picks the next Character to act (lowest action time; ties broken by coin flip). */

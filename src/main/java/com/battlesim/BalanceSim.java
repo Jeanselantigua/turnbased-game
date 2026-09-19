@@ -16,16 +16,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Batch-fights the roster (1v1 and 3v3) with a simple AI and prints
+ * Batch-fights the roster (1v1 and 4v4) with a simple AI and prints
  * win-rate / survival tables. Run as a Java Application from Eclipse.
  */
 public class BalanceSim {
 
-    static final int FIGHTS_PER_1V1 = 200;
+    static final int FIGHTS_PER_1V1 = 500;
     static final int FIGHTS_PER_SPLIT = 50;
-    static final int MIXED_3V3_FIGHTS = 300;
+    static final int MIXED_4V4_FIGHTS = 500;
     static final int MAX_ACTIONS = 200;
-    static final int TEAM_SIZE = 3;
+    static final int TEAM_SIZE = 4;
 
     public static void main(String[] args) {
         List<CharacterTemplate> roster = PlayableCharacters.all();
@@ -146,7 +146,7 @@ public class BalanceSim {
 
     private static void runUniqueSplits(List<CharacterTemplate> roster, RandomProvider random) {
         int poolSize = TEAM_SIZE * 2;
-        System.out.println("Unique 3v3 splits (each character used once), "
+        System.out.println("Unique 4v4 splits (each character used once), "
                 + FIGHTS_PER_SPLIT + " fights each");
 
         if (roster.size() < poolSize) {
@@ -241,7 +241,7 @@ public class BalanceSim {
     }
 
     private static void runMixedComps(List<CharacterTemplate> roster, RandomProvider random) {
-        System.out.println("Mixed 3v3 (templates can repeat), " + MIXED_3V3_FIGHTS + " fights");
+        System.out.println("Mixed 4v4 (templates can repeat), " + MIXED_4V4_FIGHTS + " fights");
 
         Map<String, CharacterAgg> stats = new LinkedHashMap<>();
         for (CharacterTemplate template : roster) {
@@ -250,7 +250,7 @@ public class BalanceSim {
 
         int draws = 0;
         int timeouts = 0;
-        for (int i = 0; i < MIXED_3V3_FIGHTS; i++) {
+        for (int i = 0; i < MIXED_4V4_FIGHTS; i++) {
             List<CharacterTemplate> teamA = randomTeam(roster, random);
             List<CharacterTemplate> teamB = randomTeam(roster, random);
             BattleResult result = fight(teamA, teamB, random);

@@ -5,6 +5,7 @@ import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
 import com.battlesim.util.RandomProvider;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -48,6 +49,13 @@ public class MonkPerfectDodgePassive implements Passive {
         source.applyBlessed(attacker, 1, log);
         if (attacker.isFainted()) {
             log.add(attacker.getName() + " has fainted!");
+            if (context != null) {
+                context.notifyFaint(attacker, self, move, log);
+            } else {
+                for (Passive passive : new ArrayList<>(attacker.getPassives())) {
+                    passive.onFaint(attacker, self, move, null, log);
+                }
+            }
         }
     }
 }

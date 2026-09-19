@@ -44,6 +44,29 @@ public class StatusEffectResolverTest {
     }
 
     @Test
+    public void slowHalvesSpeedAndExpiresAfterThreeTurnsWithoutDamage() {
+        Character target = character("Target", 200, 10, 10);
+        target.setStatus(Status.SLOW);
+        assertEquals(3, target.getStatusTurnsRemaining());
+        assertEquals(5, target.getEffectiveSpeed());
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+
+        resolver.applyStartOfTurnEffects(target, log);
+        assertEquals(200, target.getStats().getCurrentHp());
+        assertEquals(Status.SLOW, target.getStatus());
+        assertEquals(2, target.getStatusTurnsRemaining());
+        assertEquals(5, target.getEffectiveSpeed());
+
+        resolver.applyStartOfTurnEffects(target, log);
+        resolver.applyStartOfTurnEffects(target, log);
+        assertEquals(Status.NONE, target.getStatus());
+        assertEquals(10, target.getEffectiveSpeed());
+        assertTrue(log.stream().anyMatch(line -> line.contains("no longer slowed")));
+    }
+
+    @Test
     public void aftermathDamagesKillerForFifteenPercentOfFaintedMaxHp() {
         Character bomber = character("Bomber", 200, 10, 10);
         Character killer = character("Slayer", 100, 10, 10);
@@ -98,6 +121,35 @@ public class StatusEffectResolverTest {
 
         assertEquals(200, nearlyFull.getStats().getCurrentHp());
         assertTrue(log.get(0).contains("recovers 10 HP"));
+    }
+
+    @Test
+    public void shieldGrantsMovePowerAsShieldHp() {
+        Character target = character("Target", 200, 10, 10);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyShield(target, 100, log);
+
+        assertEquals(100, target.getStats().getShieldHp());
+        assertEquals(200, target.getStats().getCurrentHp());
+        assertTrue(log.get(0).contains("100 HP shield"));
+    }
+
+    @Test
+    public void shieldAbsorbsDamageThenLeftoverHitsHp() {
+        Character target = character("Target", 200, 10, 10);
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyShield(target, 40, log);
+
+        int hpLost = resolver.applyDamageThroughShield(target, null, 70, null, log);
+
+        assertEquals(0, target.getStats().getShieldHp());
+        assertEquals(30, hpLost);
+        assertEquals(170, target.getStats().getCurrentHp());
+        assertTrue(log.stream().anyMatch(line -> line.contains("shield absorbs 40")));
+        assertTrue(log.stream().anyMatch(line -> line.contains("shatters")));
     }
 
     @Test

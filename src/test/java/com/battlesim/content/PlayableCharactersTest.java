@@ -11,20 +11,21 @@ import org.junit.Test;
 public class PlayableCharactersTest {
 
     @Test
-    public void allReturnsSevenNamedTemplates() {
+    public void allReturnsUniqueNamedTemplates() {
         List<CharacterTemplate> roster = PlayableCharacters.all();
-        assertEquals(7, roster.size());
+        assertEquals(8, roster.size());
         Set<String> names = roster.stream()
                 .map(CharacterTemplate::getName)
                 .collect(Collectors.toSet());
-        assertEquals(7, names.size());
+        assertEquals(8, names.size());
         assertTrue(names.contains("Knight"));
         assertTrue(names.contains("Rogue"));
         assertTrue(names.contains("Roeseph"));
         assertTrue(names.contains("Randy"));
         assertTrue(names.contains("Chefromancer"));
-        assertTrue(names.contains("Woman"));
+        assertTrue(names.contains("Okirik"));
         assertTrue(names.contains("Volt"));
+        assertTrue(names.contains("Sion"));
     }
 
     @Test

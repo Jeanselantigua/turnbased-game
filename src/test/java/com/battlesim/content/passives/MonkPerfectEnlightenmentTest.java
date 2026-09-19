@@ -122,6 +122,13 @@ public class MonkPerfectEnlightenmentTest {
         };
     }
 
+    private static void finishChannel(MonkPerfectEnlightenmentPassive pe, Character monk,
+                                       BattleContext ctx) {
+        for (int i = 0; i < MonkPerfectEnlightenmentPassive.CHANNEL_TURNS; i++) {
+            pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        }
+    }
+
     @Test
     public void monkKitIncludesPerfectEnlightenment() {
         Character monk = PlayableCharacters.monk().createInstance();
@@ -143,30 +150,33 @@ public class MonkPerfectEnlightenmentTest {
 
         assertEquals(MonkPerfectEnlightenmentPassive.Phase.CHANNELING, pe.getPhase());
         assertFalse(pe.isTeamChannel());
-        assertEquals(2, pe.getChannelTurnsRemaining());
+        assertEquals(MonkPerfectEnlightenmentPassive.CHANNEL_TURNS, pe.getChannelTurnsRemaining());
         assertTrue(pe.skipsOwnAction(monk));
         assertFalse(pe.isUntargetable(monk));
-        assertTrue(log.stream().anyMatch(line -> line.contains("vulnerable")));
+        assertTrue(log.stream().anyMatch(line -> line.contains("disrupting")));
     }
 
     @Test
-    public void castStartsDeactivatedChannelIn2v2() {
+    public void castStartsResistedChannelIn2v2() {
         Character monk = monkWith(neverRandom());
         Character ally = dummy("Ally", 200, 10);
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
 
-        alwaysHits().resolveAction(monk,
+        List<String> log = alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 twoVTwo(monk, ally, foe));
 
         assertTrue(pe.isTeamChannel());
-        assertTrue(pe.isUntargetable(monk));
+        assertFalse(pe.isUntargetable(monk));
         assertTrue(pe.skipsOwnAction(monk));
+        assertEquals(40.0, pe.modifyIncomingDamage(monk, foe,
+                foe.getMoves().get(0), 100, new ArrayList<>()), 0.01);
+        assertTrue(log.stream().anyMatch(line -> line.contains("resists incoming damage")));
     }
 
     @Test
-    public void twoSkippedTurnsBecomeEnlightenedAndSwapParryForDodge() {
+    public void skippedChannelTurnsBecomeEnlightenedAndSwapParryForDodge() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
@@ -175,9 +185,7 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
-        assertEquals(MonkPerfectEnlightenmentPassive.Phase.CHANNELING, pe.getPhase());
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        finishChannel(pe, monk, ctx);
 
         assertEquals(MonkPerfectEnlightenmentPassive.Phase.ENLIGHTENED, pe.getPhase());
         assertFalse(monk.hasPassive(MonkParryPassive.class));
@@ -196,7 +204,7 @@ public class MonkPerfectEnlightenmentTest {
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
 
-        Move stun = new Move("Stun", Type.PHYSICAL, 10, 100, 0, false, Status.STUN, 100);
+        Move stun = new Move("Stun", Type.HOLY, 10, 100, 0, true, Status.STUN, 100);
         alwaysHits().resolveAction(foe, new ActionChoice(stun, List.of(monk)), ctx);
 
         assertEquals(MonkPerfectEnlightenmentPassive.Phase.ANGERED, pe.getPhase());
@@ -250,7 +258,7 @@ public class MonkPerfectEnlightenmentTest {
     }
 
     @Test
-    public void soloChannelTurnOneAmplifiesIncomingDamage() {
+    public void soloChannelDoesNotAmplifyIncomingDamage() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
@@ -259,11 +267,11 @@ public class MonkPerfectEnlightenmentTest {
                 oneVOne(monk, foe));
 
         Move slash = new Move("Slash", Type.PHYSICAL, 50, 100, 0, false, Status.NONE, 0);
-        assertEquals(150.0, pe.modifyIncomingDamage(monk, foe, slash, 100, new ArrayList<>()), 0.01);
+        assertEquals(100.0, pe.modifyIncomingDamage(monk, foe, slash, 100, new ArrayList<>()), 0.01);
     }
 
     @Test
-    public void soloChannelTurnTwoRestrictsOpponentToDebuffs() {
+    public void soloChannelRestrictsOpponentToDebuffs() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
@@ -271,17 +279,17 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
 
         Move slash = new Move("Slash", Type.PHYSICAL, 50, 100, 0, false, Status.NONE, 0);
         Move stun = new Move("Stun", Type.PHYSICAL, 10, 100, 0, false, Status.STUN, 100);
         List<Move> restricted = pe.restrictOpponentMoves(monk, foe, List.of(slash, stun), ctx);
         assertEquals(1, restricted.size());
         assertEquals("Stun", restricted.get(0).getName());
+        assertTrue(pe.restrictOpponentMoves(monk, foe, List.of(slash), ctx).isEmpty());
     }
 
     @Test
-    public void enlightenedStaffBasicsDealZeroAndApplyDoubleBlessed() {
+    public void enlightenedStaffBasicsDealHalfAndApplyDoubleBlessed() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
@@ -289,14 +297,14 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        finishChannel(pe, monk, ctx);
 
         int hpBefore = foe.getStats().getCurrentHp();
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName("Oochie"), List.of(foe)), ctx);
 
-        assertEquals(hpBefore, foe.getStats().getCurrentHp());
+        assertTrue(foe.getStats().getCurrentHp() < hpBefore);
+        assertTrue(foe.getStats().getCurrentHp() > 0);
         assertEquals(2, foe.getBlessedStacks());
     }
 
@@ -309,8 +317,7 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        finishChannel(pe, monk, ctx);
 
         pe.onAttackConnected(monk, foe, monk.getMoveByName("Oochie"), 0, false, true,
                 new ArrayList<>(), ctx);
@@ -343,8 +350,7 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        finishChannel(pe, monk, ctx);
         foe.addBlessedStacks(MonkPerfectEnlightenmentPassive.BLESSED_CAP,
                 MonkPerfectEnlightenmentPassive.BLESSED_CAP);
 
@@ -368,8 +374,7 @@ public class MonkPerfectEnlightenmentTest {
         alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
-        pe.onActionSkipped(monk, ctx, new ArrayList<>());
+        finishChannel(pe, monk, ctx);
 
         List<Move> available = pe.filterOwnMoves(monk, monk.getMoves(), ctx);
         assertFalse(available.stream().anyMatch(m ->
@@ -383,10 +388,46 @@ public class MonkPerfectEnlightenmentTest {
     }
 
     @Test
-    public void allyDeathDuringTeamChannelLosesTheFight() {
+    public void idleStaffHitsCountTowardSoloChannel() {
+        Character monk = monkWith(neverRandom());
+        Character foe = dummy("Foe", 200, 10);
+        MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
+        BattleContext ctx = oneVOne(monk, foe);
+
+        alwaysHits().resolveAction(monk, new ActionChoice(monk.getMoveByName("Oochie"), List.of(foe)), ctx);
+        alwaysHits().resolveAction(monk, new ActionChoice(monk.getMoveByName("Oochie"), List.of(foe)), ctx);
+
+        assertEquals(2, pe.getIdleHitsLanded());
+    }
+
+    @Test
+    public void allyDeathDuringTeamChannelFailsIntoAngered() {
+        Character monk = monkWith(neverRandom());
+        Character ally = dummy("Ally", 20, 10);
+        Character foe = dummy("Foe", 200, 10);
+        MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
+        BattleContext ctx = twoVTwo(monk, ally, foe);
+
+        alwaysHits().resolveAction(monk,
+                new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
+                ctx);
+        ally.getStats().applyDamage(ally.getStats().getCurrentHp());
+        List<String> log = new ArrayList<>();
+        pe.onFieldChanged(monk, ctx, log);
+
+        assertEquals(MonkPerfectEnlightenmentPassive.Phase.ANGERED, pe.getPhase());
+        assertTrue(monk.getMoves().stream().anyMatch(m ->
+                MonkPerfectEnlightenmentPassive.SWING_NAME.equals(m.getName())));
+        assertTrue(log.stream().anyMatch(line -> line.contains("fails as their ally falls")));
+        assertFalse(pe.isUntargetable(monk));
+    }
+
+    @Test
+    public void allyDeathDuringTeamChannelDoesNotEndTheBattle() {
         Character monk = new Character("Roeseph", new Stats(200, 45, 35, 40, 50, 80),
                 Type.HOLY,
-                List.of(MonkPerfectEnlightenmentPassive.createMove()),
+                List.of(MonkPerfectEnlightenmentPassive.createMove(),
+                        new Move("Oochie", Type.HOLY, 50, 100, 0, false, Status.NONE, 0)),
                 List.of(new MonkPerfectEnlightenmentPassive(neverRandom())));
         Character ally = new Character("Ally", new Stats(20, 1, 1, 1, 1, 5),
                 Type.PHYSICAL,
@@ -396,6 +437,9 @@ public class MonkPerfectEnlightenmentTest {
                 List.of(new Move("Smash", Type.PHYSICAL, 200, 100, 0, false, Status.NONE, 0)));
 
         MoveSelector scripted = (actor, available, enemies, allies) -> {
+            if (available.isEmpty()) {
+                return new ActionChoice(actor.getMoves().get(0), List.of(enemies.get(0)));
+            }
             if (actor == monk) {
                 return new ActionChoice(available.get(0), List.of(foe));
             }
@@ -407,8 +451,10 @@ public class MonkPerfectEnlightenmentTest {
                 new Team(List.of(monk, ally)), new Team(List.of(foe)),
                 scripted, scripted, alwaysRandom(), 20, false).run();
 
-        assertEquals(BattleResult.Winner.TEAM_B, result.getWinner());
+        MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
         assertTrue(result.getLog().stream().anyMatch(line -> line.contains("fails as their ally falls")));
+        assertEquals(MonkPerfectEnlightenmentPassive.Phase.ANGERED, pe.getPhase());
+        assertTrue(result.getActionCount() > 2);
     }
 
     @Test

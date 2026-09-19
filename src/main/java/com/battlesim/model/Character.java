@@ -44,6 +44,15 @@ public class Character {
     public Status getStatus() { return status; }
     public int getStatusTurnsRemaining() { return statusTurnsRemaining; }
 
+    /** Speed used by turn order. SLOW halves it (minimum 1). */
+    public int getEffectiveSpeed() {
+        int speed = stats.getSpeed();
+        if (status == Status.SLOW) {
+            return Math.max(1, speed / 2);
+        }
+        return speed;
+    }
+
     public void setStatus(Status status) {
         this.status = status;
         this.statusTurnsRemaining = status.getDefaultDurationTurns();

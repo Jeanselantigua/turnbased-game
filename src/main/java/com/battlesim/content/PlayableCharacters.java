@@ -14,6 +14,9 @@ import com.battlesim.content.passives.WizardChargedPassive;
 import com.battlesim.content.passives.WizardHuntPassive;
 import com.battlesim.content.passives.WomanBlessingPassive;
 import com.battlesim.content.passives.WomanSparkMercyPassive;
+import com.battlesim.content.passives.SionExplodingShieldPassive;
+import com.battlesim.content.passives.SionKillMaxHpPassive;
+import com.battlesim.content.passives.SionRevivePassive;
 import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.Move;
 import com.battlesim.model.Status;
@@ -36,7 +39,7 @@ public class PlayableCharacters {
         Move crossbow = new Move("Crossbow", Type.PHYSICAL, 50, 90, 0, false, Status.NONE, 0);
         
         
-        return new CharacterTemplate("Rogue", 200, 60, 30, 20, 30, 60,
+        return new CharacterTemplate("Rogue", 200, 60, 20, 20, 30, 70,
                 Type.ARCANE, List.of(backstab, crossbow),
                 List.of(RogueCritStealthPassive::new));
     }
@@ -70,26 +73,36 @@ public class PlayableCharacters {
                 List.of(ChefChickenPassive::new, ChefSlowCookPassive::new));
     }
 
-
     public static CharacterTemplate healer() {
         Move heal = new Move("Heal", Type.HOLY, 0, 100, 0, true, Status.HEAL, 100);
         Move holySpark = new Move("Holy Spark", Type.HOLY, 55, 100, 0, true, Status.NONE, 0);
+        Move barrier = new Move("Barrier", Type.HOLY, 80, 100, 0, true, Status.SHIELD, 100);
 
-        return new CharacterTemplate("Woman", 230, 10, 28, 60, 40, 32,
-                Type.HOLY, List.of(heal, holySpark),
+        return new CharacterTemplate("Okirik", 230, 10, 28, 60, 40, 32,
+                Type.HOLY, List.of(heal, holySpark, barrier),
                 List.of(WomanBlessingPassive::new, WomanSparkMercyPassive::new));
     }
 
     public static CharacterTemplate wizard() {
-        Move bolt = new Move("Bolt", Type.LIGHTNING, 45, 95, 0, true, Status.NONE, 0);
+        Move bolt = new Move("Bolt", Type.LIGHTNING, 45, 95, 0, true, Status.PARALYSIS, 30);
         Move staticShock = new Move("Static", Type.LIGHTNING, 20, 90, 0, true, Status.PARALYSIS, 70);
 
-        return new CharacterTemplate("Volt", 220, 10, 25, 60, 40, 45,
+        return new CharacterTemplate("Volt", 210, 10, 35, 60, 40, 45,
                 Type.LIGHTNING, List.of(bolt, staticShock),
                 List.of(WizardHuntPassive::new, WizardChargedPassive::new));
     }
 
+    public static CharacterTemplate sion() {
+        Move slam = new Move("Decamating Slam", Type.PHYSICAL, 45, 60, 0, false, Status.STUN, 100);
+        Move roar = new Move("Roar of the slayer", Type.UNDEAD, 100, 100, 0, true, Status.SELF_SHIELD, 100);
+        Move slow = new Move("Slow", Type.PHYSICAL, 20, 90, 0, false, Status.SLOW, 100);
+
+        return new CharacterTemplate("Sion", 270, 25, 35, 20, 35, 15,
+                Type.LIGHTNING, List.of(slam, roar, slow),
+                List.of(SionRevivePassive::new, SionExplodingShieldPassive::new, SionKillMaxHpPassive::new));
+    }
+
     public static List<CharacterTemplate> all() {
-        return List.of(knight(), rogue(), monk(), caveman(), chefromancer(), healer(), wizard());
+        return List.of(knight(), rogue(), monk(), caveman(), chefromancer(), healer(), wizard(), sion());
     }
 }

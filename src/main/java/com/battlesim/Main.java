@@ -48,16 +48,21 @@ public class Main {
             int moveChoice = scanner.nextInt() - 1;
             Move chosenMove = moves.get(moveChoice);
 
-            List<Character> pool = chosenMove.targetsAllies() ? allies : enemies;
-            System.out.println(chosenMove.targetsAllies() ? "Choose an ally:" : "Choose a target:");
-            for (int i = 0; i < pool.size(); i++) {
-                Character candidate = pool.get(i);
-                System.out.println((i + 1) + ". " + candidate.getName()
-                        + " (" + candidate.getStats().getCurrentHp()
-                        + "/" + candidate.getStats().getMaxHp() + ")");
+            List<Character> pool = chosenMove.legalTargets(actor, allies, enemies);
+            Character chosenTarget;
+            if (chosenMove.targetsSelfOnly()) {
+                chosenTarget = actor;
+            } else {
+                System.out.println(chosenMove.targetsAllies() ? "Choose an ally:" : "Choose a target:");
+                for (int i = 0; i < pool.size(); i++) {
+                    Character candidate = pool.get(i);
+                    System.out.println((i + 1) + ". " + candidate.getName()
+                            + " (" + candidate.getStats().getCurrentHp()
+                            + "/" + candidate.getStats().getMaxHp() + ")");
+                }
+                int targetChoice = scanner.nextInt() - 1;
+                chosenTarget = pool.get(targetChoice);
             }
-            int targetChoice = scanner.nextInt() - 1;
-            Character chosenTarget = pool.get(targetChoice);
 
             List<Character> targets = new ArrayList<>();
             targets.add(chosenTarget);
