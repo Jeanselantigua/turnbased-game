@@ -8,6 +8,7 @@ import com.battlesim.content.passives.KnightBleedPassive;
 import com.battlesim.content.passives.KnightShieldPassive;
 import com.battlesim.content.passives.MonkHolySplitPassive;
 import com.battlesim.content.passives.MonkParryPassive;
+import com.battlesim.content.passives.MonkPerfectEnlightenmentPassive;
 import com.battlesim.content.passives.RogueCritStealthPassive;
 import com.battlesim.content.passives.WizardChargedPassive;
 import com.battlesim.content.passives.WizardHuntPassive;
@@ -43,10 +44,12 @@ public class PlayableCharacters {
     public static CharacterTemplate monk() {
         Move oochie = new Move("Oochie", Type.HOLY,50, 100, 0, false, Status.NONE, 0);
         Move divinePalm = new Move("Divine Palm", Type.HOLY, 50, 95, 0, true, Status.NONE, 0);
+        Move enlightenment = MonkPerfectEnlightenmentPassive.createMove();
 
-        return new CharacterTemplate("Roeseph", 220, 35, 35, 30, 50, 30,
-                Type.HOLY, List.of(oochie, divinePalm),
-                List.of(MonkHolySplitPassive::new, MonkParryPassive::new));
+        return new CharacterTemplate("Roeseph", 200, 45, 35, 40, 50, 30,
+                Type.HOLY, List.of(oochie, divinePalm, enlightenment),
+                List.of(MonkHolySplitPassive::new, MonkParryPassive::new,
+                        MonkPerfectEnlightenmentPassive::new));
     }
 
     public static CharacterTemplate caveman() {

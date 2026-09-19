@@ -9,7 +9,7 @@ import java.util.Random;
 public class RogueCritStealthPassive implements Passive {
 
     private static final double CRIT_CHANCE = 0.15;
-    private static final double CRIT_MULTIPLIER = 1.75;
+    private static final double CRIT_MULTIPLIER = 2.0;
     private static final double STEALTH_MULTIPLIER = 1.5;
     private static final int STEALTH_EVASION = 35;
     private final Random random = new Random();

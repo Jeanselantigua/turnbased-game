@@ -30,7 +30,7 @@ public class RandomMoveSelectorTest {
         Set<String> moves = new HashSet<>();
         Set<String> targets = new HashSet<>();
         for (int i = 0; i < 80; i++) {
-            ActionChoice choice = selector.chooseAction(actor, enemies, List.of(actor));
+            ActionChoice choice = selector.chooseAction(actor, actor.getMoves(), enemies, List.of(actor));
             assertEquals(1, choice.getTargets().size());
             moves.add(choice.getMove().getName());
             targets.add(choice.getTargets().get(0).getName());

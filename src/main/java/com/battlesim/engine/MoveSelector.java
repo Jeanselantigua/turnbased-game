@@ -1,6 +1,7 @@
 package com.battlesim.engine;
 
 import com.battlesim.model.Character;
+import com.battlesim.model.Move;
 import java.util.List;
 
 /**
@@ -9,5 +10,6 @@ import java.util.List;
  * an AI opponent (picks randomly or by some strategy).
  */
 public interface MoveSelector {
-    ActionChoice chooseAction(Character actor, List<Character> enemyTeam, List<Character> allyTeam);
+    ActionChoice chooseAction(Character actor, List<Move> availableMoves,
+                               List<Character> enemyTeam, List<Character> allyTeam);
 }

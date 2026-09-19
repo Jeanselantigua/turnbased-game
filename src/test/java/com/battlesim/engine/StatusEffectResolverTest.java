@@ -27,16 +27,16 @@ public class StatusEffectResolverTest {
         StatusEffectResolver resolver = new StatusEffectResolver();
         List<String> log = new ArrayList<>();
 
-        resolver.applyEndOfTurnEffects(mage, log);
+        resolver.applyStartOfTurnEffects(mage, log);
         assertEquals(185, mage.getStats().getCurrentHp());
         assertEquals(Status.CURSED, mage.getStatus());
         assertEquals(2, mage.getStatusTurnsRemaining());
 
-        resolver.applyEndOfTurnEffects(mage, log);
+        resolver.applyStartOfTurnEffects(mage, log);
         assertEquals(170, mage.getStats().getCurrentHp());
         assertEquals(1, mage.getStatusTurnsRemaining());
 
-        resolver.applyEndOfTurnEffects(mage, log);
+        resolver.applyStartOfTurnEffects(mage, log);
         assertEquals(155, mage.getStats().getCurrentHp());
         assertEquals(Status.NONE, mage.getStatus());
         assertEquals(0, mage.getStatusTurnsRemaining());
@@ -138,14 +138,14 @@ public class StatusEffectResolverTest {
         StatusEffectResolver resolver = new StatusEffectResolver();
         List<String> log = new ArrayList<>();
 
-        resolver.applyEndOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
         assertEquals(184, victim.getStats().getCurrentHp());
         assertEquals(168, chef.getStats().getCurrentHp());
         assertEquals(2, victim.getSiphonTurnsRemaining());
         assertTrue(log.stream().anyMatch(line -> line.contains("siphons")));
 
-        resolver.applyEndOfTurnEffects(victim, log);
-        resolver.applyEndOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
         assertEquals(Status.NONE, victim.getStatus());
         assertEquals(0, victim.getSiphonTurnsRemaining());
         assertTrue(log.stream().anyMatch(line -> line.contains("no longer siphoned")));
@@ -160,7 +160,7 @@ public class StatusEffectResolverTest {
 
         StatusEffectResolver resolver = new StatusEffectResolver();
         List<String> log = new ArrayList<>();
-        resolver.applyEndOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
 
         assertEquals(Status.CURSED, victim.getStatus());
         assertTrue(victim.isSiphoned());

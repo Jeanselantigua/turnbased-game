@@ -15,8 +15,9 @@ public class RandomMoveSelector implements MoveSelector {
     }
 
     @Override
-    public ActionChoice chooseAction(Character actor, List<Character> enemyTeam, List<Character> allyTeam) {
-        List<Move> moves = actor.getMoves();
+    public ActionChoice chooseAction(Character actor, List<Move> availableMoves,
+                                      List<Character> enemyTeam, List<Character> allyTeam) {
+        List<Move> moves = availableMoves.isEmpty() ? actor.getMoves() : availableMoves;
         Move chosenMove = moves.get(random.nextInt(0, moves.size() - 1));
         List<Character> pool = chosenMove.targetsAllies() ? allyTeam : enemyTeam;
         Character chosenTarget = pool.get(random.nextInt(0, pool.size() - 1));

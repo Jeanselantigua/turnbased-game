@@ -39,9 +39,9 @@ public class Main {
         System.out.println("You control Team A. Team B picks a random move and a random target each turn.");
 
         // Player-controlled: choose a move from console, then a target from console.
-        MoveSelector consoleSelector = (actor, enemies, allies) -> {
+        MoveSelector consoleSelector = (actor, availableMoves, enemies, allies) -> {
             System.out.println(actor.getName() + "'s moves:");
-            List<Move> moves = actor.getMoves();
+            List<Move> moves = availableMoves.isEmpty() ? actor.getMoves() : availableMoves;
             for (int i = 0; i < moves.size(); i++) {
                 System.out.println((i + 1) + ". " + moves.get(i).getName());
             }

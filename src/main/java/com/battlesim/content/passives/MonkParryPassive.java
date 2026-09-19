@@ -19,7 +19,7 @@ public class MonkParryPassive implements Passive {
             return damage;
         }
         if (random.nextDouble() < PARRY_CHANCE) {
-            int reflected = (int) Math.round(damage * 0.5);
+            int reflected = (int) Math.round(damage * 0.75);
             int actualReflected = attacker.getStats().applyDamage(reflected);
             log.add(self.getName() + " parries and reflects " + actualReflected
                     + " damage back at " + attacker.getName() + "!");

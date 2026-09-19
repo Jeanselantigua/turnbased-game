@@ -7,7 +7,7 @@ import com.battlesim.model.Status;
 import java.util.List;
 
 /**
- * Applies status effects: end-of-turn DoT, aftermath on death, ally heal, and leech lifesteal.
+ * Applies status effects: start-of-turn DoT, aftermath on death, ally heal, and leech lifesteal.
  */
 public class StatusEffectResolver {
 
@@ -21,7 +21,7 @@ public class StatusEffectResolver {
     private static final double SIPHON_PERCENT_MAX_HP = 0.08;
     private static final double SIPHON_HEAL_PERCENT = 0.50;
 
-    public void applyEndOfTurnEffects(Character character, List<String> log) {
+    public void applyStartOfTurnEffects(Character character, List<String> log) {
         if (character.isFainted()) {
             return;
         }

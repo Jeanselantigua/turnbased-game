@@ -9,7 +9,7 @@ import com.battlesim.model.Passive;
  */
 public class WizardHuntPassive implements Passive {
 
-    private static final int STEALTH_ACCURACY_BONUS = 35;
+    private static final int STEALTH_ACCURACY_BONUS = 40;
 
     @Override
     public int modifyAccuracy(Character self, Character target, Move move, int baseAccuracy) {

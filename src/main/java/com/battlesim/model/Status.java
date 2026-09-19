@@ -16,10 +16,11 @@ public enum Status {
     HEAL,       // e.g. heal for a percentage of the target's max health
     LEECH,      // e.g. 15% of damage dealt is converted to health
     SIPHON,     // DoT on the target; a portion heals the caster each tick
+    UTILITY,    // Self/ally no-op (e.g. Recover). Not a combat status.
     ;
 
     /**
-     * Number of end-of-turn ticks before the status clears.
+     * Number of start-of-turn ticks before the status clears.
      * 0 means it lasts until replaced or cleared by other logic (e.g. STUN).
      */
     public int getDefaultDurationTurns() {
@@ -41,8 +42,24 @@ public enum Status {
         }
     }
 
-    /** Only HEAL is used on living allies (including self). */
+    /** HEAL and UTILITY target living allies (including self). */
     public boolean targetsAllies() {
-        return this == HEAL;
+        return this == HEAL || this == UTILITY;
+    }
+
+    /** Harmful combat statuses used to classify "debuff-category" moves. */
+    public boolean isDebuff() {
+        switch (this) {
+            case BURN:
+            case POISON:
+            case BLEED:
+            case CURSED:
+            case PARALYSIS:
+            case STUN:
+            case SIPHON:
+                return true;
+            default:
+                return false;
+        }
     }
 }

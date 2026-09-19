@@ -2,6 +2,7 @@ package com.battlesim.engine;
 
 import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
+import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
 import com.battlesim.model.Team;
 import com.battlesim.util.RandomProvider;
@@ -21,6 +22,7 @@ public class Battle implements BattleContext {
     private final TurnOrderScheduler scheduler;
     private final int maxActions;
     private final boolean verbose;
+    private Character ritualFailedFor;
 
     public Battle(Team teamA, Team teamB,
                    MoveSelector selectorA, MoveSelector selectorB,
@@ -74,25 +76,52 @@ public class Battle implements BattleContext {
                 break;
             }
 
-            boolean actorOnTeamA = teamA.getMembers().contains(actor);
-            List<Character> enemies = actorOnTeamA ? teamB.getMembers() : teamA.getMembers();
-            List<Character> allies = actorOnTeamA ? teamA.getMembers() : teamB.getMembers();
-            MoveSelector selector = actorOnTeamA ? selectorA : selectorB;
+            List<String> log = new ArrayList<>();
+            statusEffectResolver.applyStartOfTurnEffects(actor, log);
 
-            List<Character> livingEnemies = targetableOnly(enemies);
-            if (livingEnemies.isEmpty()) {
-                List<Character> anyoneAlive = aliveOnly(enemies);
-                if (anyoneAlive.isEmpty()) {
-                    break;
+            if (!actor.isFainted()) {
+                actor.tickMoveCooldowns();
+                for (Passive passive : new ArrayList<>(actor.getPassives())) {
+                    passive.onTurnStart(actor, this, log);
                 }
-                livingEnemies = anyoneAlive;
-            }
 
-            List<Character> livingAllies = aliveOnly(allies);
-            ActionChoice choice = selector.chooseAction(actor, livingEnemies, livingAllies);
-            List<String> log = turnResolver.resolveAction(actor, choice, this);
-            statusEffectResolver.applyEndOfTurnEffects(actor, log);
+                boolean actorOnTeamA = teamA.getMembers().contains(actor);
+                List<Character> enemies = actorOnTeamA ? teamB.getMembers() : teamA.getMembers();
+                List<Character> allies = actorOnTeamA ? teamA.getMembers() : teamB.getMembers();
+                MoveSelector selector = actorOnTeamA ? selectorA : selectorB;
+
+                List<Character> livingEnemies = targetableOnly(enemies);
+                if (livingEnemies.isEmpty()) {
+                    List<Character> anyoneAlive = aliveOnly(enemies);
+                    if (anyoneAlive.isEmpty()) {
+                        break;
+                    }
+                    livingEnemies = anyoneAlive;
+                }
+
+                List<Character> livingAllies = aliveOnly(allies);
+                if (skipsOwnAction(actor)) {
+                    for (Passive passive : new ArrayList<>(actor.getPassives())) {
+                        passive.onActionSkipped(actor, this, log);
+                    }
+                } else {
+                    List<Move> available = availableMovesFor(actor);
+                    if (available.isEmpty()) {
+                        log.add(actor.getName() + " has no available actions!");
+                    } else {
+                        ActionChoice choice = selector.chooseAction(actor, available, livingEnemies, livingAllies);
+                        log.addAll(turnResolver.resolveAction(actor, choice, this));
+                    }
+                }
+            }
             faintOrphanSummons(log);
+            if (checkRitualFailure(log)) {
+                fullLog.addAll(log);
+                if (verbose) {
+                    log.forEach(System.out::println);
+                }
+                break;
+            }
             fullLog.addAll(log);
             if (verbose) {
                 log.forEach(System.out::println);
@@ -110,7 +139,72 @@ public class Battle implements BattleContext {
         return new BattleResult(winner, actionCount, snapshotFighters(), fullLog);
     }
 
+    public List<Move> availableMovesFor(Character actor) {
+        List<Move> moves = new ArrayList<>();
+        for (Move move : actor.getMoves()) {
+            if (actor.getMoveCooldown(move.getName()) > 0) {
+                continue;
+            }
+            moves.add(move);
+        }
+        for (Passive passive : actor.getPassives()) {
+            moves = new ArrayList<>(passive.filterOwnMoves(actor, moves, this));
+        }
+        for (Character enemy : enemiesOf(actor)) {
+            if (enemy.isFainted()) {
+                continue;
+            }
+            for (Passive passive : enemy.getPassives()) {
+                moves = new ArrayList<>(passive.restrictOpponentMoves(enemy, actor, moves, this));
+            }
+        }
+        return moves;
+    }
+
+    private boolean skipsOwnAction(Character actor) {
+        for (Passive passive : actor.getPassives()) {
+            if (passive.skipsOwnAction(actor)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkRitualFailure(List<String> log) {
+        for (Character character : teamA.getMembers()) {
+            if (ritualFailed(character, log)) {
+                ritualFailedFor = character;
+                return true;
+            }
+        }
+        for (Character character : teamB.getMembers()) {
+            if (ritualFailed(character, log)) {
+                ritualFailedFor = character;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean ritualFailed(Character character, List<String> log) {
+        for (Passive passive : character.getPassives()) {
+            if (passive.forcesTeamLoss(character, this)) {
+                log.add(character.getName() + "'s Perfect Enlightenment fails as their ally falls!");
+                return true;
+            }
+        }
+        return false;
+    }
+
     private BattleResult.Winner determineWinner() {
+        if (ritualFailedFor != null) {
+            if (teamA.getMembers().contains(ritualFailedFor)) {
+                return BattleResult.Winner.TEAM_B;
+            }
+            if (teamB.getMembers().contains(ritualFailedFor)) {
+                return BattleResult.Winner.TEAM_A;
+            }
+        }
         boolean aAlive = teamA.hasAnyAlive();
         boolean bAlive = teamB.hasAnyAlive();
         if (aAlive && bAlive) {

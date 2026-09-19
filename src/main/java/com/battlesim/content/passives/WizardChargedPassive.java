@@ -6,7 +6,7 @@ import java.util.List;
 
 public class WizardChargedPassive implements Passive {
 
-    private static final int SPEED_BONUS = 10;
+    private static final int SPEED_BONUS = 15;
     private static final int MAGIC_BONUS = 10;
     private boolean charged = false;
 

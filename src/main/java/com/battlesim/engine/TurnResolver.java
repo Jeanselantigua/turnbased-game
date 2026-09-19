@@ -44,7 +44,7 @@ public class TurnResolver {
             resolveHitOnTarget(actor, move, target, context, log);
         }
 
-        for (Passive passive : actor.getPassives()) {
+        for (Passive passive : new ArrayList<>(actor.getPassives())) {
             passive.onActionResolved(actor, move, choice.getTargets(), context, log);
         }
 
@@ -66,14 +66,29 @@ public class TurnResolver {
         effectiveAccuracy = Math.max(0, Math.min(100, effectiveAccuracy));
 
         boolean hits = randomProvider.nextInt(1, 100) <= effectiveAccuracy;
-        if (!hits) {
-            if (effectiveAccuracy < attackerAccuracy) {
+        boolean dodged = false;
+        if (hits && !move.targetsAllies()) {
+            for (Passive passive : new ArrayList<>(target.getPassives())) {
+                if (passive.rollDodge(target, actor, move)) {
+                    dodged = true;
+                    break;
+                }
+            }
+        }
+        if (!hits || dodged) {
+            if (dodged || effectiveAccuracy < attackerAccuracy) {
                 log.add(target.getName() + " dodges the attack!");
             } else {
                 log.add("Missed " + target.getName() + "!");
             }
-            for (Passive passive : actor.getPassives()) {
-                passive.onAttackMissed(actor, move, log);
+            if (dodged) {
+                for (Passive passive : new ArrayList<>(target.getPassives())) {
+                    passive.onDodged(target, actor, move, context, log);
+                }
+            } else {
+                for (Passive passive : actor.getPassives()) {
+                    passive.onAttackMissed(actor, move, log);
+                }
             }
             return;
         }
@@ -94,6 +109,7 @@ public class TurnResolver {
         for (Passive passive : actor.getPassives()) {
             damage = passive.modifyOutgoingDamage(actor, target, move, damage, isCrit, log);
         }
+        double damageBeforeIncoming = damage;
         for (Passive passive : target.getPassives()) {
             damage = passive.modifyIncomingDamage(target, actor, move, damage, log);
         }
@@ -105,6 +121,7 @@ public class TurnResolver {
             }
         }
 
+        boolean blocked = damageBeforeIncoming > 0 && damage <= 0;
         int finalDamage = (int) Math.round(Math.max(0, damage));
         if (finalDamage > 0) {
             int actualDamage = target.getStats().applyDamage(finalDamage);
@@ -125,6 +142,10 @@ public class TurnResolver {
                 log.add(target.getName() + " has fainted!");
                 statusEffectResolver.applyOnFaintEffects(target, actor, log);
             }
+        }
+
+        for (Passive passive : new ArrayList<>(actor.getPassives())) {
+            passive.onAttackConnected(actor, target, move, finalDamage, isCrit, blocked, log, context);
         }
     }
 
@@ -170,6 +191,9 @@ public class TurnResolver {
         if (randomProvider.nextInt(1, 100) <= move.getStatusChance()) {
             target.setStatus(move.getInflictedStatus());
             log.add(target.getName() + " is now " + move.getInflictedStatus() + "!");
+            for (Passive passive : new ArrayList<>(target.getPassives())) {
+                passive.onStatusReceived(target, move.getInflictedStatus(), actor, log);
+            }
         }
     }
 }

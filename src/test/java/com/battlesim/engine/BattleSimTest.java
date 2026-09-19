@@ -37,6 +37,26 @@ public class BattleSimTest {
     }
 
     @Test
+    public void startOfTurnBurnCanFaintActorBeforeTheyMove() {
+        Move slash = new Move("Slash", Type.PHYSICAL, 999, 100, 0, false, Status.NONE, 0);
+        Character burned = new Character("Burned", new Stats(10, 200, 1, 1, 1, 100), Type.PHYSICAL, List.of(slash));
+        burned.getStats().applyDamage(9);
+        burned.setStatus(Status.BURN);
+        Character foe = new Character("Foe", new Stats(200, 1, 100, 1, 100, 1), Type.PHYSICAL, List.of(slash));
+
+        RandomProvider random = new RandomProvider(1L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        BattleResult result = Battle.create(
+                new Team(List.of(burned)), new Team(List.of(foe)),
+                ai, ai, random, 10, false).run();
+
+        assertTrue(result.getLog().stream().anyMatch(line -> line.contains("damage from burn")));
+        assertTrue(result.getLog().stream().noneMatch(line -> line.contains("uses Slash")));
+        assertEquals(BattleResult.Winner.TEAM_B, result.getWinner());
+    }
+
+    @Test
     public void damagingAiVsAiFinishesWithoutHanging() {
         Character a = PlayableCharacters.knight().createInstance();
         Character b = PlayableCharacters.rogue().createInstance();
