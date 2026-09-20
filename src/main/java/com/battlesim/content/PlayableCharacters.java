@@ -59,7 +59,7 @@ public class PlayableCharacters {
         Move club = new Move("Bonk", Type.PHYSICAL, 120, 40, 0, false, Status.STUN, 40);
         Move leech = new Move("Devour", Type.PHYSICAL, 40, 90, 0, false, Status.LEECH, 100);
 
-        return new CharacterTemplate("Randy", 250, 50, 50, 0, 35, 15,
+        return new CharacterTemplate("Randy", 220, 50, 70, 0, 40, 20,
                 Type.PHYSICAL, List.of(club, leech),
                 List.of(CavemanFrenzyPassive::new, CavemanAccuracyCreepPassive::new));
     }
@@ -75,7 +75,7 @@ public class PlayableCharacters {
 
     public static CharacterTemplate healer() {
         Move heal = new Move("Heal", Type.HOLY, 0, 100, 0, true, Status.HEAL, 100);
-        Move holySpark = new Move("Holy Spark", Type.HOLY, 55, 100, 0, true, Status.NONE, 0);
+        Move holySpark = new Move("Holy Spark", Type.HOLY, 45, 100, 0, true, Status.NONE, 0);
         Move barrier = new Move("Barrier", Type.HOLY, 80, 100, 0, true, Status.SHIELD, 100);
 
         return new CharacterTemplate("Okirik", 230, 10, 28, 60, 40, 32,
@@ -102,7 +102,15 @@ public class PlayableCharacters {
                 List.of(SionRevivePassive::new, SionExplodingShieldPassive::new, SionKillMaxHpPassive::new));
     }
 
+    public static CharacterTemplate dualSwordsman() {
+        
+        
+        return new CharacterTemplate("Dual Swordsman", 180, 50, 50, 60, 30, 30,
+                Type.PHYSICAL, List.of( ),
+                List.of());
+    }
+    
     public static List<CharacterTemplate> all() {
-        return List.of(knight(), rogue(), monk(), caveman(), chefromancer(), healer(), wizard(), sion());
+        return List.of(knight(), rogue(), monk(), caveman(), chefromancer(), healer(), wizard(), sion(), dualSwordsman());
     }
 }

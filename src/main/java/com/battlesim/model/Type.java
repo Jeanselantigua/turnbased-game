@@ -13,5 +13,6 @@ public enum Type {
     ARCANE,
     HOLY,
     SHADOW,
-    UNDEAD
+    UNDEAD,
+    MONSTER
 }

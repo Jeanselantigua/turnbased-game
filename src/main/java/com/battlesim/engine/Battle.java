@@ -110,6 +110,8 @@ public class Battle implements BattleContext {
                     } else {
                         ActionChoice choice = selector.chooseAction(actor, available, livingEnemies, livingAllies);
                         log.addAll(turnResolver.resolveAction(actor, choice, this));
+                        // TODO Phase 2: extraActionsPerTurn — resolve more actions here
+                        // before advanceActor. Do not re-run start-of-turn DoT or onTurnStart.
                     }
                 }
             }

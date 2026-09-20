@@ -8,7 +8,7 @@ public enum Status {
     NONE,
     BURN,       // e.g. damage over time
     POISON,     // e.g. damage over time
-    BLEED,      // e.g. damage over time
+    BLEED,      // DoT: 40% of the inflictor's attack, snapshotted as status magnitude
     CURSED,     // e.g. 15% Current MagicAttack for 3 turns
     AFTERMATH,  // e.g. 15% max health dmg on death
     PARALYSIS,  // e.g. chance to skip a turn

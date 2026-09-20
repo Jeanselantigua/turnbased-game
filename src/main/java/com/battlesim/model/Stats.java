@@ -83,4 +83,13 @@ public class Stats {
     public void increaseMagicAttack(int amount) { this.magicAttack += amount; }
     public void increaseMagicDefense(int amount) { this.magicDefense += amount; }
     public void increaseSpeed(int amount) { this.speed = Math.max(1, this.speed + amount); }
+
+    /**
+     * Dungeon scaling: multiply combat stats. Keep current HP at full after scale
+     * (enemies spawn fresh each wave). Speed must stay at least 1.
+     */
+    public void scaleAll(double multiplier) {
+        // TODO Phase 2: maxHp, currentHp, attack, defense, magicAttack, magicDefense, speed
+        // e.g. maxHp = Math.max(1, (int) Math.round(maxHp * multiplier)); currentHp = maxHp;
+    }
 }

@@ -137,4 +137,17 @@ public interface Passive {
     /** Called on the living killer after {@code victim} faints. {@code move} may be null for DoT deaths. */
     default void onKill(Character self, Character victim, Move move, BattleContext context, List<String> log) {
     }
+
+    /** True if this fighter should ignore {@code status}. TurnResolver does not check this yet. */
+    default boolean isImmuneTo(Status status) {
+        return false;
+    }
+
+    /**
+     * Extra actions after the normal one on this turn (boss multi-action).
+     * Battle does not read this yet. Do not re-run start-of-turn DoT for extras.
+     */
+    default int extraActionsPerTurn(Character self) {
+        return 0;
+    }
 }

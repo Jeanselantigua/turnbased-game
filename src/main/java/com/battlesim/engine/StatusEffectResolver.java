@@ -15,6 +15,7 @@ public class StatusEffectResolver {
 
     private static final double BURN_PERCENT_MAX_HP = 0.10;
     private static final double POISON_PERCENT_MAX_HP = 0.08;
+    /** Percent of the inflictor's snapshotted attack (`statusMagnitude`). */
     private static final double BLEED_PERCENT_ATTACK = 0.40;
     private static final double CURSED_PERCENT_MAGIC_ATTACK = 0.15;
     private static final double AFTERMATH_PERCENT_MAX_HP = 0.15;
@@ -56,7 +57,7 @@ public class StatusEffectResolver {
                 damage = (int) Math.round(character.getStats().getMaxHp() * POISON_PERCENT_MAX_HP);
                 break;
             case BLEED:
-                damage = (int) Math.round(character.getStats().getAttack() * BLEED_PERCENT_ATTACK);
+                damage = (int) Math.round(character.getStatusMagnitude() * BLEED_PERCENT_ATTACK);
                 break;
             case CURSED:
                 damage = (int) Math.round(character.getStats().getMagicAttack() * CURSED_PERCENT_MAGIC_ATTACK);

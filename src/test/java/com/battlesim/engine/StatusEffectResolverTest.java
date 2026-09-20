@@ -218,4 +218,37 @@ public class StatusEffectResolverTest {
         assertTrue(victim.isSiphoned());
         assertEquals(169, victim.getStats().getCurrentHp());
     }
+
+    @Test
+    public void bleedTickUsesInflictorAttackSnapshotNotAfflictedAttack() {
+        Character victim = character("Victim", 200, 10, 10);
+        victim.setStatus(Status.BLEED, 100);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyStartOfTurnEffects(victim, log);
+
+        assertEquals(160, victim.getStats().getCurrentHp());
+        assertEquals(Status.BLEED, victim.getStatus());
+        assertEquals(2, victim.getStatusTurnsRemaining());
+        assertEquals(100, victim.getStatusMagnitude());
+        assertTrue(log.stream().anyMatch(line -> line.contains("bleed")));
+    }
+
+    @Test
+    public void bleedExpiresAndClearsMagnitudeAfterThreeTurns() {
+        Character victim = character("Victim", 200, 10, 10);
+        victim.setStatus(Status.BLEED, 50);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyStartOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
+        resolver.applyStartOfTurnEffects(victim, log);
+
+        assertEquals(140, victim.getStats().getCurrentHp());
+        assertEquals(Status.NONE, victim.getStatus());
+        assertEquals(0, victim.getStatusMagnitude());
+        assertTrue(log.stream().anyMatch(line -> line.contains("no longer bleeding")));
+    }
 }

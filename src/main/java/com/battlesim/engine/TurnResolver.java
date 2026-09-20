@@ -203,10 +203,18 @@ public class TurnResolver {
             return;
         }
         if (randomProvider.nextInt(1, 100) <= move.getStatusChance()) {
-            target.setStatus(move.getInflictedStatus());
-            log.add(target.getName() + " is now " + move.getInflictedStatus() + "!");
+            Status applied = move.getInflictedStatus();
+            for (Passive passive : target.getPassives()) {
+                if (passive.isImmuneTo(applied)) {
+                    log.add(target.getName() + " resists " + applied + "!");
+                    return;
+                }
+            }
+            int magnitude = applied == Status.BLEED ? actor.getStats().getAttack() : 0;
+            target.setStatus(applied, magnitude);
+            log.add(target.getName() + " is now " + applied + "!");
             for (Passive passive : new ArrayList<>(target.getPassives())) {
-                passive.onStatusReceived(target, move.getInflictedStatus(), actor, log);
+                passive.onStatusReceived(target, applied, actor, log);
             }
         }
     }

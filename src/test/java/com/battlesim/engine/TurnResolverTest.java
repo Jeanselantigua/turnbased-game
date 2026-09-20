@@ -141,4 +141,17 @@ public class TurnResolverTest {
         assertEquals(200, defender.getStats().getCurrentHp());
         assertTrue(log.stream().anyMatch(line -> line.contains("dodges the attack")));
     }
+
+    @Test
+    public void bleedMoveSnapshotsAttackerAttackAsMagnitude() {
+        Character attacker = character("Knight", 200, 80, 0);
+        Character enemy = character("Enemy", 200, 10, 10);
+        Move rend = new Move("Rend", Type.PHYSICAL, 20, 100, 0, false, Status.BLEED, 100);
+
+        List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(rend, List.of(enemy)));
+
+        assertEquals(Status.BLEED, enemy.getStatus());
+        assertEquals(80, enemy.getStatusMagnitude());
+        assertTrue(log.stream().anyMatch(line -> line.contains("BLEED")));
+    }
 }

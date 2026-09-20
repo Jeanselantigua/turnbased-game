@@ -23,7 +23,7 @@ public class KnightBleedPassive implements Passive {
             return;
         }
         if (random.nextDouble() < PROC_CHANCE) {
-            target.setStatus(Status.BLEED);
+            target.setStatus(Status.BLEED, self.getStats().getAttack());
             log.add(target.getName() + " is bleeding from the Knight's strike!");
         }
     }

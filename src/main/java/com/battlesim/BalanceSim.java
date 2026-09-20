@@ -39,6 +39,7 @@ public class BalanceSim {
         run1v1(roster, random);
         runUniqueSplits(roster, random);
         runMixedComps(roster, random);
+        // TODO Phase 2: runDungeonProgress(roster, random);
     }
 
     static BattleResult fight(List<CharacterTemplate> teamATemplates,
@@ -334,6 +335,20 @@ public class BalanceSim {
             return name;
         }
         return name.substring(0, max);
+    }
+
+    /**
+     * How far each solo / duo / trio climbs {@link com.battlesim.dungeon.Dungeon#standard()}.
+     * Fill this in after DungeonRun.run actually fights waves.
+     */
+    private static void runDungeonProgress(List<CharacterTemplate> roster, RandomProvider random) {
+        System.out.println("Dungeon climb (skeleton — DungeonRun is not implemented yet)");
+        // TODO: filter out templates with no moves (e.g. Dual Swordsman)
+        // TODO: solos — for each template, RUNS times: spawn, DungeonRun.run, record wavesCleared
+        // TODO: duos  — combinations(roster.size(), 2)
+        // TODO: trios — combinations(roster.size(), 3)
+        // TODO: print avg / median wave reached per composition
+        // Tune RUNS_PER_COMP: 9+C(9,2)+C(9,3) = 129 comps; 20 runs each is a long sim.
     }
 
     private static double pct(int count, int total) {

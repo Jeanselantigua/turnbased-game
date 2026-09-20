@@ -5,6 +5,10 @@ import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
 import java.util.List;
 
+/**
+ * On a damaging hit, adds 60% of the Monk's magic attack as extra damage.
+ * The bonus is unmitigated: it is not divided by the target's defense.
+ */
 public class MonkHolySplitPassive implements Passive {
 
     private static final double BONUS_PERCENT_MAGIC_ATTACK = 0.60;

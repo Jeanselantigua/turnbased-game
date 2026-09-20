@@ -15,6 +15,8 @@ public class Character {
     private final Map<String, Integer> moveCooldowns = new HashMap<>();
     private Status status;
     private int statusTurnsRemaining;
+    /** Snapshotted at apply time (e.g. inflictor attack for BLEED). 0 if unused. */
+    private int statusMagnitude;
     private Character siphonSource;
     private int siphonTurnsRemaining;
     private Character summoner;
@@ -28,6 +30,7 @@ public class Character {
         this.passives = new ArrayList<>(passives);
         this.status = Status.NONE;
         this.statusTurnsRemaining = 0;
+        this.statusMagnitude = 0;
         this.siphonTurnsRemaining = 0;
     }
 
@@ -43,6 +46,7 @@ public class Character {
     public List<Passive> getPassives() { return passives; }
     public Status getStatus() { return status; }
     public int getStatusTurnsRemaining() { return statusTurnsRemaining; }
+    public int getStatusMagnitude() { return statusMagnitude; }
 
     /** Speed used by turn order. SLOW halves it (minimum 1). */
     public int getEffectiveSpeed() {
@@ -54,8 +58,13 @@ public class Character {
     }
 
     public void setStatus(Status status) {
+        setStatus(status, 0);
+    }
+
+    public void setStatus(Status status, int magnitude) {
         this.status = status;
         this.statusTurnsRemaining = status.getDefaultDurationTurns();
+        this.statusMagnitude = status == Status.NONE ? 0 : Math.max(0, magnitude);
     }
 
     /** Counts down timed statuses (e.g. CURSED). No-op when duration is infinite. */
@@ -66,6 +75,7 @@ public class Character {
         statusTurnsRemaining--;
         if (statusTurnsRemaining == 0) {
             this.status = Status.NONE;
+            this.statusMagnitude = 0;
         }
     }
 
