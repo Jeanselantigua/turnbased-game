@@ -3,7 +3,7 @@ package com.battlesim.content.passives;
 import com.battlesim.model.Character;
 import com.battlesim.model.Passive;
 
-/** Boss (or elite) takes extra actions on the same turn. Battle does not read this yet. */
+/** Boss (or elite) takes extra actions on the same turn. */
 public class ExtraActionsPassive implements Passive {
 
     private final int extra;

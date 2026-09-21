@@ -110,8 +110,28 @@ public class Battle implements BattleContext {
                     } else {
                         ActionChoice choice = selector.chooseAction(actor, available, livingEnemies, livingAllies);
                         log.addAll(turnResolver.resolveAction(actor, choice, this));
-                        // TODO Phase 2: extraActionsPerTurn — resolve more actions here
-                        // before advanceActor. Do not re-run start-of-turn DoT or onTurnStart.
+                        int extras = extraActionsFor(actor);
+                        for (int i = 0; i < extras; i++) {
+                            if (actor.isFainted() || !teamA.hasAnyAlive() || !teamB.hasAnyAlive()) {
+                                break;
+                            }
+                            livingEnemies = targetableOnly(enemies);
+                            if (livingEnemies.isEmpty()) {
+                                livingEnemies = aliveOnly(enemies);
+                                if (livingEnemies.isEmpty()) {
+                                    break;
+                                }
+                            }
+                            livingAllies = aliveOnly(allies);
+                            List<Move> extraAvailable = availableMovesFor(actor);
+                            if (extraAvailable.isEmpty()) {
+                                log.add(actor.getName() + " has no available actions!");
+                                break;
+                            }
+                            ActionChoice extraChoice = selector.chooseAction(
+                                    actor, extraAvailable, livingEnemies, livingAllies);
+                            log.addAll(turnResolver.resolveAction(actor, extraChoice, this));
+                        }
                     }
                 }
             }
@@ -163,6 +183,14 @@ public class Battle implements BattleContext {
             }
         }
         return false;
+    }
+
+    private int extraActionsFor(Character actor) {
+        int extras = 0;
+        for (Passive passive : actor.getPassives()) {
+            extras += passive.extraActionsPerTurn(actor);
+        }
+        return extras;
     }
 
     private void notifyFieldChanged(List<String> log) {

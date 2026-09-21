@@ -1,6 +1,9 @@
 package com.battlesim;
 
 import com.battlesim.content.PlayableCharacters;
+import com.battlesim.dungeon.Dungeon;
+import com.battlesim.dungeon.DungeonResult;
+import com.battlesim.dungeon.DungeonRun;
 import com.battlesim.engine.Battle;
 import com.battlesim.engine.BattleResult;
 import com.battlesim.engine.MoveSelector;
@@ -10,14 +13,16 @@ import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.Team;
 import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
- * Batch-fights the roster (1v1 and 4v4) with a simple AI and prints
- * win-rate / survival tables. Run as a Java Application from Eclipse.
+ * Batch-fights the roster (1v1 and 4v4) and climbs {@link Dungeon#standard()}
+ * as every solo, duo, and trio. Run as a Java Application from Eclipse.
  */
 public class BalanceSim {
 
@@ -26,6 +31,7 @@ public class BalanceSim {
     static final int MIXED_4V4_FIGHTS = 500;
     static final int MAX_ACTIONS = 200;
     static final int TEAM_SIZE = 4;
+    static final int DUNGEON_RUNS_PER_COMP = 10;
 
     public static void main(String[] args) {
         List<CharacterTemplate> roster = PlayableCharacters.all();
@@ -36,10 +42,10 @@ public class BalanceSim {
         System.out.println("AI: SimpleAiMoveSelector  |  max actions: " + MAX_ACTIONS);
         System.out.println();
 
+        runDungeonProgress(roster, random);
         run1v1(roster, random);
         runUniqueSplits(roster, random);
         runMixedComps(roster, random);
-        // TODO Phase 2: runDungeonProgress(roster, random);
     }
 
     static BattleResult fight(List<CharacterTemplate> teamATemplates,
@@ -338,17 +344,92 @@ public class BalanceSim {
     }
 
     /**
-     * How far each solo / duo / trio climbs {@link com.battlesim.dungeon.Dungeon#standard()}.
-     * Fill this in after DungeonRun.run actually fights waves.
+     * How far each solo / duo / trio climbs {@link Dungeon#standard()}.
+     * 5 runs × 129 comps is already a long sim; bump {@link #DUNGEON_RUNS_PER_COMP} if needed.
      */
     private static void runDungeonProgress(List<CharacterTemplate> roster, RandomProvider random) {
-        System.out.println("Dungeon climb (skeleton — DungeonRun is not implemented yet)");
-        // TODO: filter out templates with no moves (e.g. Dual Swordsman)
-        // TODO: solos — for each template, RUNS times: spawn, DungeonRun.run, record wavesCleared
-        // TODO: duos  — combinations(roster.size(), 2)
-        // TODO: trios — combinations(roster.size(), 3)
-        // TODO: print avg / median wave reached per composition
-        // Tune RUNS_PER_COMP: 9+C(9,2)+C(9,3) = 129 comps; 20 runs each is a long sim.
+        List<CharacterTemplate> climbable = climbable(roster);
+        MoveSelector ai = new SimpleAiMoveSelector(random);
+        Supplier<Dungeon> dungeons = () -> Dungeon.standard(random);
+
+        System.out.println("Dungeon climb (" + Dungeon.DEFAULT_FLOORS + " floors, boss every "
+                + Dungeon.BOSS_EVERY + ", +" + Dungeon.SCALE_PER_BLOCK
+                + " stats every " + Dungeon.BOSS_EVERY + " floors, "
+                + "party scale solo " + Dungeon.SOLO_SCALE
+                + " / duo " + Dungeon.DUO_SCALE
+                + " / trio " + Dungeon.TRIO_SCALE + ", "
+                + DUNGEON_RUNS_PER_COMP + " runs each)");
+        System.out.println("Roster: " + joinNames(climbable));
+        printClimbTable("Solos", combinations(climbable.size(), 1), climbable, ai, random, dungeons);
+        printClimbTable("Duos", combinations(climbable.size(), 2), climbable, ai, random, dungeons);
+        printClimbTable("Trios", combinations(climbable.size(), 3), climbable, ai, random, dungeons);
+    }
+
+    static List<CharacterTemplate> climbable(List<CharacterTemplate> roster) {
+        List<CharacterTemplate> climbable = new ArrayList<>();
+        for (CharacterTemplate template : roster) {
+            if (!template.createInstance().getMoves().isEmpty()) {
+                climbable.add(template);
+            }
+        }
+        return climbable;
+    }
+
+    private static void printClimbTable(String title, List<int[]> combos,
+                                        List<CharacterTemplate> roster,
+                                        MoveSelector ai, RandomProvider random,
+                                        Supplier<Dungeon> dungeons) {
+        System.out.println(title + " (" + combos.size() + ")");
+        System.out.printf("  %-42s %7s %7s %5s %5s %8s%n",
+                "Comp", "Avg", "Median", "Min", "Max", "Clear%");
+        List<ClimbRow> rows = new ArrayList<>();
+        for (int[] combo : combos) {
+            List<CharacterTemplate> party = new ArrayList<>();
+            for (int idx : combo) {
+                party.add(roster.get(idx));
+            }
+            rows.add(measureClimb(party, DUNGEON_RUNS_PER_COMP, ai, random, dungeons));
+        }
+        rows.sort(Comparator.comparingDouble((ClimbRow r) -> r.avg).reversed());
+        for (ClimbRow row : rows) {
+            System.out.printf("  %-42s %7.1f %7.1f %5d %5d %7.1f%%%n",
+                    row.name, row.avg, row.median, row.min, row.max, row.clearPct);
+        }
+        System.out.println();
+    }
+
+    static ClimbRow measureClimb(List<CharacterTemplate> party, int runs,
+                                 MoveSelector selector, RandomProvider random,
+                                 Supplier<Dungeon> dungeons) {
+        int[] samples = new int[runs];
+        int clears = 0;
+        for (int i = 0; i < runs; i++) {
+            DungeonResult result = DungeonRun.run(spawn(party), dungeons.get(), selector, random, false);
+            samples[i] = result.getWavesCleared();
+            if (result.clearedAll()) {
+                clears++;
+            }
+        }
+        Arrays.sort(samples);
+        double sum = 0;
+        for (int sample : samples) {
+            sum += sample;
+        }
+        return new ClimbRow(
+                joinNames(party),
+                sum / runs,
+                median(samples),
+                samples[0],
+                samples[samples.length - 1],
+                pct(clears, runs));
+    }
+
+    static double median(int[] sorted) {
+        int n = sorted.length;
+        if (n % 2 == 1) {
+            return sorted[n / 2];
+        }
+        return (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
     }
 
     private static double pct(int count, int total) {
@@ -356,6 +437,24 @@ public class BalanceSim {
             return 0;
         }
         return (count * 100.0) / total;
+    }
+
+    static final class ClimbRow {
+        final String name;
+        final double avg;
+        final double median;
+        final int min;
+        final int max;
+        final double clearPct;
+
+        ClimbRow(String name, double avg, double median, int min, int max, double clearPct) {
+            this.name = name;
+            this.avg = avg;
+            this.median = median;
+            this.min = min;
+            this.max = max;
+            this.clearPct = clearPct;
+        }
     }
 
     private static final class RankRow {

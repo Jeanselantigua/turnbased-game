@@ -89,7 +89,15 @@ public class Stats {
      * (enemies spawn fresh each wave). Speed must stay at least 1.
      */
     public void scaleAll(double multiplier) {
-        // TODO Phase 2: maxHp, currentHp, attack, defense, magicAttack, magicDefense, speed
-        // e.g. maxHp = Math.max(1, (int) Math.round(maxHp * multiplier)); currentHp = maxHp;
+        if (multiplier == 1.0) {
+            return;
+        }
+        this.maxHp = Math.max(1, (int) Math.round(maxHp * multiplier));
+        this.currentHp = maxHp;
+        this.attack = Math.max(0, (int) Math.round(attack * multiplier));
+        this.defense = Math.max(0, (int) Math.round(defense * multiplier));
+        this.magicAttack = Math.max(0, (int) Math.round(magicAttack * multiplier));
+        this.magicDefense = Math.max(0, (int) Math.round(magicDefense * multiplier));
+        this.speed = Math.max(1, (int) Math.round(speed * multiplier));
     }
 }

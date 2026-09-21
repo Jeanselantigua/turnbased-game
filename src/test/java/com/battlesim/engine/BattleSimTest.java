@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import com.battlesim.content.PlayableCharacters;
+import com.battlesim.content.passives.ExtraActionsPassive;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Stats;
@@ -85,5 +86,45 @@ public class BattleSimTest {
                 assertFalse(aAlive);
             }
         }
+    }
+
+    @Test
+    public void extraActionsPassiveResolvesAnotherActionOnSameTurn() {
+        Move slash = new Move("Slash", Type.PHYSICAL, 10, 100, 0, false, Status.NONE, 0);
+        Character boss = new Character("Boss", new Stats(200, 50, 1, 1, 1, 100), Type.PHYSICAL, List.of(slash));
+        boss.addPassive(new ExtraActionsPassive(1));
+        Character dummy = new Character("Dummy", new Stats(9999, 1, 1, 1, 1, 1), Type.PHYSICAL, List.of(slash));
+
+        RandomProvider random = new RandomProvider(1L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        BattleResult result = Battle.create(
+                new Team(List.of(boss)), new Team(List.of(dummy)),
+                ai, ai, random, 1, false).run();
+
+        long uses = result.getLog().stream().filter(line -> line.contains("Boss uses Slash")).count();
+        assertEquals(2, uses);
+        assertTrue(result.getLog().stream().noneMatch(line -> line.contains("Dummy uses")));
+    }
+
+    @Test
+    public void extraActionsDoNotReapplyStartOfTurnDot() {
+        Move slash = new Move("Slash", Type.PHYSICAL, 1, 100, 0, false, Status.NONE, 0);
+        Character boss = new Character("Boss", new Stats(200, 50, 1, 1, 1, 100), Type.PHYSICAL, List.of(slash));
+        boss.setStatus(Status.BURN);
+        boss.addPassive(new ExtraActionsPassive(1));
+        Character dummy = new Character("Dummy", new Stats(500, 1, 1, 1, 1, 1), Type.PHYSICAL, List.of(slash));
+
+        RandomProvider random = new RandomProvider(1L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        BattleResult result = Battle.create(
+                new Team(List.of(boss)), new Team(List.of(dummy)),
+                ai, ai, random, 1, false).run();
+
+        long burns = result.getLog().stream().filter(line -> line.contains("damage from burn")).count();
+        assertEquals(1, burns);
+        long uses = result.getLog().stream().filter(line -> line.contains("Boss uses Slash")).count();
+        assertEquals(2, uses);
     }
 }

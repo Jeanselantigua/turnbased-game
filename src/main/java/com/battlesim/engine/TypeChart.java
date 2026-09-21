@@ -19,28 +19,36 @@ public class TypeChart {
 			chart.put(type, new EnumMap<>(Type.class));
 		}
 		
-		setEffectiveness(Type.PHYSICAL, Type.HOLY, 1.5);
+		setEffectiveness(Type.PHYSICAL, Type.HOLY, 1.25);
 		setEffectiveness(Type.PHYSICAL, Type.ARCANE, 1.5);
 		setEffectiveness(Type.PHYSICAL, Type.SHADOW, 0.25);
 		setEffectiveness(Type.PHYSICAL, Type.UNDEAD, 0.75);
 		
 		setEffectiveness(Type.FIRE, Type.ICE, 1.5);
+        setEffectiveness(Type.FIRE, Type.MONSTER, 1.25);
         setEffectiveness(Type.FIRE, Type.EARTH, 0.5);
+        setEffectiveness(Type.FIRE, Type.FIRE, 0.5);
         
         setEffectiveness(Type.ICE, Type.EARTH, 1.5);
         setEffectiveness(Type.ICE, Type.FIRE, 0.5);
+        setEffectiveness(Type.ICE, Type.ICE, 0.5);
         
         setEffectiveness(Type.LIGHTNING, Type.EARTH, 0.0); // grounded — immune
         setEffectiveness(Type.LIGHTNING, Type.PHYSICAL, 1.25);
+        setEffectiveness(Type.LIGHTNING, Type.LIGHTNING, 0.5);
         
         setEffectiveness(Type.HOLY, Type.UNDEAD, 1.5);
         setEffectiveness(Type.HOLY, Type.SHADOW, 1.5);
+        setEffectiveness(Type.HOLY, Type.MONSTER, 2.0);
+        setEffectiveness(Type.HOLY, Type.HOLY, 0.5);
         
         setEffectiveness(Type.ARCANE, Type.PHYSICAL, 1.5);
         setEffectiveness(Type.ARCANE, Type.UNDEAD, 0.5);
         
         setEffectiveness(Type.SHADOW, Type.HOLY, 1.5);
         setEffectiveness(Type.SHADOW, Type.ARCANE, 0.5);
+
+        setEffectiveness(Type.MONSTER, Type.HOLY, 0.5);
 		
 	}
 	

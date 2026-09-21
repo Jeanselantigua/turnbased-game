@@ -9,14 +9,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Replaces Parry after a successful Perfect Enlightenment channel.
- * Dodge chance stacks on dodging attacks or debuffs; a dodge always counters.
+ * Replaces Parry after a successful Meditate channel.
+ * Dodge chance stacks on dodging, drops 5% each hit, and snaps back to base
+ * after five of the monk's turns without a dodge. A dodge always counters.
  */
 public class MonkPerfectDodgePassive implements Passive {
 
     private final MonkPerfectEnlightenmentPassive source;
     private final RandomProvider random;
     private int dodgeStacks;
+    private int hitStacks;
+    private int turnsWithoutDodge;
 
     public MonkPerfectDodgePassive(MonkPerfectEnlightenmentPassive source, RandomProvider random) {
         this.source = source;
@@ -27,8 +30,19 @@ public class MonkPerfectDodgePassive implements Passive {
         return dodgeStacks;
     }
 
+    public int getHitStacks() {
+        return hitStacks;
+    }
+
+    public int getTurnsWithoutDodge() {
+        return turnsWithoutDodge;
+    }
+
     public double currentDodgeChance() {
-        return Math.min(source.dodgeCap(), source.dodgeBase() + dodgeStacks * source.dodgeStack());
+        double chance = source.dodgeBase()
+                + dodgeStacks * source.dodgeStack()
+                - hitStacks * source.dodgeHitPenalty();
+        return Math.max(0, Math.min(source.dodgeCap(), chance));
     }
 
     @Override
@@ -39,6 +53,7 @@ public class MonkPerfectDodgePassive implements Passive {
     @Override
     public void onDodged(Character self, Character attacker, Move move,
                           BattleContext context, List<String> log) {
+        turnsWithoutDodge = 0;
         dodgeStacks++;
         int percent = (int) Math.round(currentDodgeChance() * 100);
         log.add(self.getName() + " perfectly dodges! Dodge chance is now " + percent + "%.");
@@ -56,6 +71,35 @@ public class MonkPerfectDodgePassive implements Passive {
                     passive.onFaint(attacker, self, move, null, log);
                 }
             }
+        }
+    }
+
+    @Override
+    public void onDamageTaken(Character self, Character attacker, int damageTaken, List<String> log) {
+        if (currentDodgeChance() <= 0) {
+            return;
+        }
+        hitStacks++;
+        int percent = (int) Math.round(currentDodgeChance() * 100);
+        log.add(self.getName() + " is hit! Dodge chance is now " + percent + "%.");
+    }
+
+    @Override
+    public void onTurnStart(Character self, BattleContext context, List<String> log) {
+        if (self == null || self.isFainted()) {
+            return;
+        }
+        if (dodgeStacks == 0 && hitStacks == 0) {
+            turnsWithoutDodge = 0;
+            return;
+        }
+        turnsWithoutDodge++;
+        if (turnsWithoutDodge >= source.dodgeResetTurns()) {
+            dodgeStacks = 0;
+            hitStacks = 0;
+            turnsWithoutDodge = 0;
+            int percent = (int) Math.round(currentDodgeChance() * 100);
+            log.add(self.getName() + "'s dodge chance resets to " + percent + "%.");
         }
     }
 }

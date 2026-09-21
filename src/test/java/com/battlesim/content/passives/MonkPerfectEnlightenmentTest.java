@@ -130,7 +130,7 @@ public class MonkPerfectEnlightenmentTest {
     }
 
     @Test
-    public void monkKitIncludesPerfectEnlightenment() {
+    public void monkKitIncludesMeditate() {
         Character monk = PlayableCharacters.monk().createInstance();
         assertTrue(monk.getMoves().stream().anyMatch(m ->
                 MonkPerfectEnlightenmentPassive.MOVE_NAME.equals(m.getName())));
@@ -188,9 +188,64 @@ public class MonkPerfectEnlightenmentTest {
         finishChannel(pe, monk, ctx);
 
         assertEquals(MonkPerfectEnlightenmentPassive.Phase.ENLIGHTENED, pe.getPhase());
+        assertEquals(MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS, pe.getEnlightenedTurnsRemaining());
         assertFalse(monk.hasPassive(MonkParryPassive.class));
         assertTrue(monk.hasPassive(MonkPerfectDodgePassive.class));
         assertTrue(monk.hasPassive(MonkHolySplitPassive.class));
+    }
+
+    @Test
+    public void enlightenmentEndsAfterSixTurnsWithoutBlessed() {
+        Character monk = monkWith(neverRandom());
+        Character foe = dummy("Foe", 200, 10);
+        MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
+        BattleContext ctx = oneVOne(monk, foe);
+
+        alwaysHits().resolveAction(monk,
+                new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
+                ctx);
+        finishChannel(pe, monk, ctx);
+
+        for (int i = 0; i < MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS; i++) {
+            pe.onTurnStart(monk, ctx, new ArrayList<>());
+            assertEquals(MonkPerfectEnlightenmentPassive.Phase.ENLIGHTENED, pe.getPhase());
+        }
+
+        List<String> log = new ArrayList<>();
+        pe.onTurnStart(monk, ctx, log);
+
+        assertEquals(MonkPerfectEnlightenmentPassive.Phase.IDLE, pe.getPhase());
+        assertTrue(monk.hasPassive(MonkParryPassive.class));
+        assertFalse(monk.hasPassive(MonkPerfectDodgePassive.class));
+        assertTrue(log.stream().anyMatch(line -> line.contains("Perfect Enlightenment fades")));
+        assertTrue(monk.getMoveCooldown(MonkPerfectEnlightenmentPassive.MOVE_NAME) > 0);
+    }
+
+    @Test
+    public void blessedProcExtendsEnlightenmentByTwoTurns() {
+        Character monk = monkWith(neverRandom());
+        Character foe = dummy("Foe", 200, 10);
+        MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
+        BattleContext ctx = oneVOne(monk, foe);
+
+        alwaysHits().resolveAction(monk,
+                new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
+                ctx);
+        finishChannel(pe, monk, ctx);
+
+        List<String> log = new ArrayList<>();
+        pe.applyBlessed(foe, 1, log);
+
+        assertEquals(MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS
+                + MonkPerfectEnlightenmentPassive.BLESSED_EXTENSION_TURNS,
+                pe.getEnlightenedTurnsRemaining());
+        assertTrue(log.stream().anyMatch(line -> line.contains("Enlightenment is extended")));
+
+        foe.addBlessedStacks(MonkPerfectEnlightenmentPassive.BLESSED_CAP,
+                MonkPerfectEnlightenmentPassive.BLESSED_CAP);
+        int remainingAtCap = pe.getEnlightenedTurnsRemaining();
+        pe.applyBlessed(foe, 1, new ArrayList<>());
+        assertEquals(remainingAtCap, pe.getEnlightenedTurnsRemaining());
     }
 
     @Test
@@ -342,6 +397,87 @@ public class MonkPerfectEnlightenmentTest {
     }
 
     @Test
+    public void takingAHitReducesDodgeChanceByFivePercent() {
+        MonkPerfectEnlightenmentPassive pe = new MonkPerfectEnlightenmentPassive(neverRandom());
+        MonkPerfectDodgePassive dodge = new MonkPerfectDodgePassive(pe, neverRandom());
+        Character monk = new Character("Roeseph", new Stats(200, 45, 35, 40, 50, 30),
+                Type.HOLY, List.of(), List.of(pe, dodge));
+        Character foe = dummy("Foe", 200, 10);
+        List<String> log = new ArrayList<>();
+
+        assertEquals(MonkPerfectEnlightenmentPassive.SOLO_DODGE_BASE, dodge.currentDodgeChance(), 0.0001);
+
+        dodge.onDamageTaken(monk, foe, 10, log);
+
+        assertEquals(1, dodge.getHitStacks());
+        assertEquals(MonkPerfectEnlightenmentPassive.SOLO_DODGE_BASE
+                - MonkPerfectEnlightenmentPassive.DODGE_HIT_PENALTY, dodge.currentDodgeChance(), 0.0001);
+        assertTrue(log.stream().anyMatch(line -> line.contains("Dodge chance is now 10%")));
+    }
+
+    @Test
+    public void dodgeChanceDoesNotFallBelowZero() {
+        MonkPerfectEnlightenmentPassive pe = new MonkPerfectEnlightenmentPassive(neverRandom());
+        MonkPerfectDodgePassive dodge = new MonkPerfectDodgePassive(pe, neverRandom());
+        Character monk = new Character("Roeseph", new Stats(200, 45, 35, 40, 50, 30),
+                Type.HOLY, List.of(), List.of(pe, dodge));
+        Character foe = dummy("Foe", 200, 10);
+
+        for (int i = 0; i < 10; i++) {
+            dodge.onDamageTaken(monk, foe, 10, new ArrayList<>());
+        }
+
+        assertEquals(0.0, dodge.currentDodgeChance(), 0.0001);
+        int stacksAtFloor = dodge.getHitStacks();
+        dodge.onDamageTaken(monk, foe, 10, new ArrayList<>());
+        assertEquals(stacksAtFloor, dodge.getHitStacks());
+    }
+
+    @Test
+    public void fiveTurnsWithoutDodgeResetsChanceToBase() {
+        MonkPerfectEnlightenmentPassive pe = new MonkPerfectEnlightenmentPassive(neverRandom());
+        MonkPerfectDodgePassive dodge = new MonkPerfectDodgePassive(pe, neverRandom());
+        Character monk = new Character("Roeseph", new Stats(200, 45, 35, 40, 50, 30),
+                Type.HOLY, List.of(), List.of(pe, dodge));
+        Character foe = dummy("Foe", 200, 10);
+
+        dodge.onDamageTaken(monk, foe, 10, new ArrayList<>());
+        dodge.onDamageTaken(monk, foe, 10, new ArrayList<>());
+        assertTrue(dodge.currentDodgeChance() < MonkPerfectEnlightenmentPassive.SOLO_DODGE_BASE);
+
+        for (int i = 0; i < MonkPerfectEnlightenmentPassive.DODGE_RESET_TURNS - 1; i++) {
+            dodge.onTurnStart(monk, oneVOne(monk, foe), new ArrayList<>());
+        }
+        assertTrue(dodge.currentDodgeChance() < MonkPerfectEnlightenmentPassive.SOLO_DODGE_BASE);
+
+        List<String> log = new ArrayList<>();
+        dodge.onTurnStart(monk, oneVOne(monk, foe), log);
+
+        assertEquals(0, dodge.getDodgeStacks());
+        assertEquals(0, dodge.getHitStacks());
+        assertEquals(MonkPerfectEnlightenmentPassive.SOLO_DODGE_BASE, dodge.currentDodgeChance(), 0.0001);
+        assertTrue(log.stream().anyMatch(line -> line.contains("dodge chance resets to 15%")));
+    }
+
+    @Test
+    public void aDodgeResetsTheTurnsWithoutDodgeCounter() {
+        MonkPerfectEnlightenmentPassive pe = new MonkPerfectEnlightenmentPassive(alwaysRandom());
+        MonkPerfectDodgePassive dodge = new MonkPerfectDodgePassive(pe, alwaysRandom());
+        Character monk = new Character("Roeseph", new Stats(200, 45, 35, 40, 50, 30),
+                Type.HOLY, List.of(), List.of(pe, dodge));
+        Character foe = dummy("Foe", 200, 10);
+        BattleContext ctx = oneVOne(monk, foe);
+
+        dodge.onDamageTaken(monk, foe, 10, new ArrayList<>());
+        dodge.onTurnStart(monk, ctx, new ArrayList<>());
+        dodge.onTurnStart(monk, ctx, new ArrayList<>());
+        dodge.onDodged(monk, foe, foe.getMoves().get(0), ctx, new ArrayList<>());
+
+        assertEquals(0, dodge.getTurnsWithoutDodge());
+        assertEquals(1, dodge.getDodgeStacks());
+    }
+
+    @Test
     public void divineBlessingConsumesStacksAndDealsBurst() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
@@ -355,12 +491,15 @@ public class MonkPerfectEnlightenmentTest {
                 MonkPerfectEnlightenmentPassive.BLESSED_CAP);
 
         int hpBefore = foe.getStats().getCurrentHp();
+        int expectedDamage = MonkPerfectEnlightenmentPassive.DIVINE_BLESSING_BASE_DAMAGE
+                + (int) Math.round(foe.getStats().getMaxHp()
+                        * MonkPerfectEnlightenmentPassive.DIVINE_BLESSING_MAX_HP_RATIO);
         List<String> log = alwaysHits().resolveAction(monk,
                 new ActionChoice(monk.getMoveByName(MonkPerfectEnlightenmentPassive.MOVE_NAME), List.of(foe)),
                 ctx);
 
         assertEquals(0, foe.getBlessedStacks());
-        assertTrue(foe.getStats().getCurrentHp() < hpBefore);
+        assertEquals(hpBefore - expectedDamage, foe.getStats().getCurrentHp());
         assertTrue(log.stream().anyMatch(line -> line.contains("Divine Blessing")));
         assertTrue(monk.getMoveCooldown(MonkPerfectEnlightenmentPassive.MOVE_NAME) > 0);
     }

@@ -78,7 +78,7 @@ public class Enemies {
         Move slash = new Move("Slash", Type.PHYSICAL, 45, 90, 0, false, Status.BLEED, 20);
         Move sheild = new Move("Shield", Type.PHYSICAL, 35, 100, 1, false, Status.SELF_SHIELD, 100);
         CharacterTemplate body = new CharacterTemplate(
-                "Skeleton", 160, 45, 25, 0, 20, 25,
+                "Swords Skeleton", 160, 45, 25, 0, 20, 25,
                 Type.UNDEAD, List.of(slash, sheild));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
@@ -89,7 +89,7 @@ public class Enemies {
         Move shockarrow = new Move("Shock Arrow", Type.PHYSICAL, 35, 90, 0, false, Status.PARALYSIS, 20);
 
         CharacterTemplate body = new CharacterTemplate(
-                "Skeleton", 120, 45, 25, 0, 20, 35,
+                "Bow Skeleton", 120, 45, 25, 0, 20, 35,
                 Type.UNDEAD, List.of(arrow, poisonarrow, shockarrow));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
@@ -148,7 +148,7 @@ public class Enemies {
                 "Hulk", 600, 50, 45, 0, 40, 35,
                 Type.PHYSICAL, List.of(crush, roar));
         // extraActions=1 and STUN immunity are data only until EnemyTemplate.createInstance wires them
-        return new EnemyTemplate(body, EnemyRank.BOSS, Set.of(Status.STUN), 1);
+        return new EnemyTemplate(body, EnemyRank.BOSS, Set.of(Status.STUN), 0);
     }
 
     public static EnemyTemplate dragon() {
@@ -185,15 +185,31 @@ public class Enemies {
     }
 
     public static List<EnemyTemplate> normals() {
-        return List.of(goblin());
+        return List.of(goblin(),
+                        wolf(),
+                        spider(),
+                        iceSlime(),
+                        fireSlime(),
+                        earthSlime(),
+                        lightningSlime(),
+                        swordskeleton(),
+                        bowskeleton(),
+                        ghoul()
+        );
     }
 
     public static List<EnemyTemplate> elites() {
-        return List.of(eliteDummy());
+        return List.of( orc(),
+                        greaterFireSpirit()
+        );
     }
 
     public static List<EnemyTemplate> bosses() {
-        return List.of(bossDummy());
+        return List.of( hulk(),
+                        dragon(),
+                        goblinKing(),
+                        fastestManAlive()
+        );
     }
 
     public static List<EnemyTemplate> all() {

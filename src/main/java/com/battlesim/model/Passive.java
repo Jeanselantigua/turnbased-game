@@ -74,6 +74,34 @@ public interface Passive {
                                    BattleContext context, List<String> log) {
     }
 
+    /**
+     * After the chosen move resolves once, chance to resolve it again against the
+     * same targets. TurnResolver checks this only on the original action.
+     */
+    default boolean shouldRepeatAction(Character self, Move move, List<Character> targets,
+                                        BattleContext context, List<String> log) {
+        return false;
+    }
+
+    /**
+     * After this character's status chance roll fails, chance to roll it again.
+     * The reroll can still fail. TurnResolver applies at most one reroll.
+     */
+    default boolean shouldRerollFailedStatus(Character self, Character target, Move move,
+                                              List<String> log) {
+        return false;
+    }
+
+    /**
+     * Adjusts the magnitude stored when this character applies {@code status}.
+     * Bleed uses it as the attack snapshot; paralysis uses it as skip turns on proc
+     * (0 means the default of 1).
+     */
+    default int modifyOutgoingStatusMagnitude(Character self, Character target, Status status,
+                                               int magnitude, List<String> log) {
+        return magnitude;
+    }
+
     default void onAttackMissed(Character self, Move move, List<String> log) {
     }
 
@@ -145,9 +173,10 @@ public interface Passive {
 
     /**
      * Extra actions after the normal one on this turn (boss multi-action).
-     * Battle does not read this yet. Do not re-run start-of-turn DoT for extras.
+     * Battle resolves these after the first action without re-running start-of-turn DoT.
      */
     default int extraActionsPerTurn(Character self) {
         return 0;
     }
+
 }

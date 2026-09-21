@@ -13,11 +13,11 @@ public class PlayableCharactersTest {
     @Test
     public void allReturnsUniqueNamedTemplates() {
         List<CharacterTemplate> roster = PlayableCharacters.all();
-        assertEquals(8, roster.size());
+        assertEquals(9, roster.size());
         Set<String> names = roster.stream()
                 .map(CharacterTemplate::getName)
                 .collect(Collectors.toSet());
-        assertEquals(8, names.size());
+        assertEquals(9, names.size());
         assertTrue(names.contains("Knight"));
         assertTrue(names.contains("Rogue"));
         assertTrue(names.contains("Roeseph"));
@@ -26,6 +26,7 @@ public class PlayableCharactersTest {
         assertTrue(names.contains("Okirik"));
         assertTrue(names.contains("Volt"));
         assertTrue(names.contains("Sion"));
+        assertTrue(names.contains("Dual Swordsman"));
     }
 
     @Test

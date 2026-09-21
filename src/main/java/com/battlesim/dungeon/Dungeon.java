@@ -1,41 +1,113 @@
 package com.battlesim.dungeon;
 
 import com.battlesim.content.Enemies;
+import com.battlesim.model.EnemyTemplate;
+import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A sequence of waves. Later floors should scale via {@link #scaleForWave(int)}.
- * Replace {@link #standard()} with a real mix once Enemies has real content.
+ * A sequence of waves. Enemy stats stay flat for {@link #BOSS_EVERY} floors,
+ * then jump by {@link #SCALE_PER_BLOCK}. Those same floors are boss fights.
+ * Solo and duo parties also get a lower {@link #partySizeScale(int)}.
  */
 public class Dungeon {
 
-    private final List<Wave> waves;
-    private final double scalePerWave;
+    public static final int BOSS_EVERY = 15;
+    public static final int DEFAULT_FLOORS = 60;
+    public static final double SCALE_PER_BLOCK = 0.15;
+    /** Enemy stat multiplier vs a trio. Solo and duo fights are scaled down. */
+    public static final double SOLO_SCALE = 0.75;
+    public static final double DUO_SCALE = 0.90;
+    public static final double TRIO_SCALE = 1.00;
 
-    public Dungeon(List<Wave> waves, double scalePerWave) {
+    private final List<Wave> waves;
+    private final double scalePerBlock;
+    private final int blockSize;
+
+    public Dungeon(List<Wave> waves, double scalePerBlock) {
+        this(waves, scalePerBlock, BOSS_EVERY);
+    }
+
+    public Dungeon(List<Wave> waves, double scalePerBlock, int blockSize) {
         if (waves == null || waves.isEmpty()) {
             throw new IllegalArgumentException("A dungeon needs at least one wave");
         }
+        if (blockSize < 1) {
+            throw new IllegalArgumentException("blockSize must be at least 1");
+        }
         this.waves = List.copyOf(waves);
-        this.scalePerWave = scalePerWave;
+        this.scalePerBlock = scalePerBlock;
+        this.blockSize = blockSize;
     }
 
     public static Dungeon standard() {
+        return standard(new RandomProvider(1L));
+    }
+
+    public static Dungeon standard(RandomProvider random) {
+        return generate(DEFAULT_FLOORS, random);
+    }
+
+    public static Dungeon generate(int floors, RandomProvider random) {
+        if (floors < 1) {
+            throw new IllegalArgumentException("A dungeon needs at least one wave");
+        }
+        List<EnemyTemplate> normals = Enemies.normals();
+        List<EnemyTemplate> elites = Enemies.elites();
+        List<EnemyTemplate> bosses = Enemies.bosses();
         List<Wave> waves = new ArrayList<>();
-        waves.add(new Wave(List.of(Enemies.goblin(), Enemies.goblin())));
-        waves.add(new Wave(List.of(Enemies.goblin(), Enemies.eliteDummy())));
-        waves.add(new Wave(List.of(Enemies.bossDummy())));
-        // TODO: longer climb, random picks from Enemies.normals/elites/bosses, named floors
-        return new Dungeon(waves, 0.15);
+        for (int waveNumber = 1; waveNumber <= floors; waveNumber++) {
+            waves.add(buildWave(waveNumber, normals, elites, bosses, random));
+        }
+        return new Dungeon(waves, SCALE_PER_BLOCK, BOSS_EVERY);
+    }
+
+    public static boolean isBossWave(int waveNumber) {
+        return waveNumber > 0 && waveNumber % BOSS_EVERY == 0;
+    }
+
+    private static Wave buildWave(int waveNumber,
+                                  List<EnemyTemplate> normals,
+                                  List<EnemyTemplate> elites,
+                                  List<EnemyTemplate> bosses,
+                                  RandomProvider random) {
+        if (isBossWave(waveNumber)) {
+            return new Wave(List.of(pick(bosses, random)));
+        }
+        int slotInBlock = ((waveNumber - 1) % BOSS_EVERY) + 1;
+        if (slotInBlock >= 11) {
+            return new Wave(List.of(pick(normals, random), pick(elites, random)));
+        }
+        return new Wave(List.of(pick(normals, random), pick(normals, random)));
+    }
+
+    private static EnemyTemplate pick(List<EnemyTemplate> pool, RandomProvider random) {
+        return pool.get(random.nextInt(0, pool.size() - 1));
     }
 
     public List<Wave> getWaves() {
         return waves;
     }
 
-    /** Wave 1 = 1.0, wave 2 = 1.0 + scalePerWave, etc. */
+    /** Waves 1–15 = 1.0, 16–30 = 1.15, 31–45 = 1.30, and so on. */
     public double scaleForWave(int waveNumber) {
-        return 1.0 + Math.max(0, waveNumber - 1) * scalePerWave;
+        int block = Math.max(0, waveNumber - 1) / blockSize;
+        return 1.0 + block * scalePerBlock;
+    }
+
+    /** Floor scale with a solo / duo / trio handicap. Trio is the baseline (1.0). */
+    public double scaleForWave(int waveNumber, int partySize) {
+        return scaleForWave(waveNumber) * partySizeScale(partySize);
+    }
+
+    public static double partySizeScale(int partySize) {
+        if (partySize <= 1) {
+            return SOLO_SCALE;
+        }
+        if (partySize == 2) {
+            return DUO_SCALE;
+        }
+        return TRIO_SCALE;
     }
 }

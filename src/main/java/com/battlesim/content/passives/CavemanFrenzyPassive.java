@@ -7,11 +7,11 @@ import java.util.List;
 public class CavemanFrenzyPassive implements Passive {
 
     public static final int ATTACK_INCREASE = 10;
-    public static final int DEFENSE_INCREASE = 20;
-    public static final int MAGIC_DEFENSE_INCREASE = 20;
+    public static final int DEFENSE_INCREASE = 15;
+    public static final int MAGIC_DEFENSE_INCREASE = 15;
     public static final int SPEED_INCREASE = 5;
 
-    public static final int MAX_BUFFS = 3;
+    public static final int MAX_BUFFS = 4;
     private int buffCount = 0;
 
     @Override

@@ -2,6 +2,9 @@ package com.battlesim.engine;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import com.battlesim.content.passives.DualSwordsmanStatusRerollPassive;
+import com.battlesim.content.passives.ExtraActionsPassive;
+import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
@@ -153,5 +156,220 @@ public class TurnResolverTest {
         assertEquals(Status.BLEED, enemy.getStatus());
         assertEquals(80, enemy.getStatusMagnitude());
         assertTrue(log.stream().anyMatch(line -> line.contains("BLEED")));
+    }
+
+    @Test
+    public void dualSwordsmanBleedSnapshotsDoubleAttack() {
+        DualSwordsmanStatusRerollPassive statusPassive = new DualSwordsmanStatusRerollPassive();
+        Character attacker = new Character("Dual Swordsman",
+                new Stats(180, 50, 50, 60, 30, 30),
+                Type.LIGHTNING, List.of(), List.of(statusPassive));
+        Character enemy = character("Enemy", 200, 10, 10);
+        Move rend = new Move("Diagonal Strike", Type.PHYSICAL, 20, 100, 0, false, Status.BLEED, 100);
+
+        List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(rend, List.of(enemy)));
+
+        assertEquals(Status.BLEED, enemy.getStatus());
+        assertEquals(100, enemy.getStatusMagnitude());
+        assertTrue(log.stream().anyMatch(line -> line.contains("twice as deep")));
+    }
+
+    @Test
+    public void dualSwordsmanParalysisSkipLocksForTwoTurns() {
+        DualSwordsmanStatusRerollPassive statusPassive = new DualSwordsmanStatusRerollPassive();
+        Character attacker = new Character("Dual Swordsman",
+                new Stats(180, 50, 50, 60, 30, 30),
+                Type.LIGHTNING, List.of(), List.of(statusPassive));
+        Character enemy = character("Enemy", 400, 10, 10);
+        Move shock = new Move("Lightning slash", Type.LIGHTNING, 20, 100, 0, false, Status.PARALYSIS, 100);
+
+        alwaysHits().resolveAction(attacker, new ActionChoice(shock, List.of(enemy)));
+
+        assertEquals(Status.PARALYSIS, enemy.getStatus());
+        assertEquals(2, enemy.getStatusMagnitude());
+
+        Move slash = new Move("Slash", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
+        RandomProvider paralysisRandom = new RandomProvider() {
+            private int doubles = 0;
+
+            @Override
+            public int nextInt(int min, int max) {
+                return min;
+            }
+
+            @Override
+            public double nextDouble() {
+                doubles++;
+                return doubles == 1 ? 0.0 : 0.99;
+            }
+        };
+        TurnResolver resolver = new TurnResolver(new DamageCalculator(new TypeChart(), paralysisRandom),
+                paralysisRandom);
+        Character dummy = character("Dummy", 200, 10, 10);
+
+        List<String> firstSkip = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
+        assertTrue(firstSkip.stream().anyMatch(line -> line.contains("paralyzed")));
+        assertEquals(1, enemy.getQueuedSkipTurns());
+
+        List<String> secondSkip = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
+        assertTrue(secondSkip.stream().anyMatch(line -> line.contains("paralyzed")));
+        assertEquals(0, enemy.getQueuedSkipTurns());
+
+        List<String> acts = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
+        assertTrue(acts.stream().anyMatch(line -> line.contains("uses Slash")));
+    }
+
+    @Test
+    public void defaultParalysisSkipDoesNotQueueASecondTurn() {
+        Character paralyzed = character("Victim", 200, 10, 10);
+        paralyzed.setStatus(Status.PARALYSIS);
+        Move slash = new Move("Slash", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
+        Character dummy = character("Dummy", 200, 10, 10);
+
+        RandomProvider paralysisRandom = new RandomProvider() {
+            private int doubles = 0;
+
+            @Override
+            public int nextInt(int min, int max) {
+                return min;
+            }
+
+            @Override
+            public double nextDouble() {
+                doubles++;
+                return doubles == 1 ? 0.0 : 0.99;
+            }
+        };
+        TurnResolver resolver = new TurnResolver(new DamageCalculator(new TypeChart(), paralysisRandom),
+                paralysisRandom);
+
+        List<String> firstSkip = resolver.resolveAction(paralyzed, new ActionChoice(slash, List.of(dummy)));
+        assertTrue(firstSkip.stream().anyMatch(line -> line.contains("paralyzed")));
+        assertEquals(0, paralyzed.getQueuedSkipTurns());
+
+        List<String> acts = resolver.resolveAction(paralyzed, new ActionChoice(slash, List.of(dummy)));
+        assertTrue(acts.stream().anyMatch(line -> line.contains("uses Slash")));
+    }
+
+    @Test
+    public void repeatActionResolvesTheSameMoveASecondTime() {
+        Passive alwaysRepeat = new Passive() {
+            @Override
+            public boolean shouldRepeatAction(Character self, Move move, List<Character> targets,
+                                               BattleContext context, List<String> log) {
+                log.add(self.getName() + " strikes again!");
+                return true;
+            }
+        };
+        Character attacker = new Character("Dualist",
+                new Stats(200, 50, 10, 10, 10, 10),
+                Type.PHYSICAL, List.of(), List.of(alwaysRepeat));
+        Character defender = character("Defender", 500, 10, 10);
+        Move slash = new Move("Slash", Type.PHYSICAL, 50, 100, 0, false, Status.NONE, 0);
+
+        List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(slash, List.of(defender)));
+
+        long hits = log.stream().filter(line -> line.contains("took")).count();
+        assertEquals(2, hits);
+        assertTrue(log.stream().anyMatch(line -> line.contains("strikes again")));
+        assertTrue(defender.getStats().getCurrentHp() < 500);
+    }
+
+    @Test
+    public void repeatActionDoesNotChainAThirdHit() {
+        Passive alwaysRepeat = new Passive() {
+            @Override
+            public boolean shouldRepeatAction(Character self, Move move, List<Character> targets,
+                                               BattleContext context, List<String> log) {
+                return true;
+            }
+        };
+        Character attacker = new Character("Dualist",
+                new Stats(200, 50, 10, 10, 10, 10),
+                Type.PHYSICAL, List.of(), List.of(alwaysRepeat));
+        Character defender = character("Defender", 500, 10, 10);
+        Move slash = new Move("Slash", Type.PHYSICAL, 50, 100, 0, false, Status.NONE, 0);
+
+        List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(slash, List.of(defender)));
+
+        long hits = log.stream().filter(line -> line.contains("took")).count();
+        assertEquals(2, hits);
+    }
+
+    @Test
+    public void failedStatusCanBeRerolledAndStillApply() {
+        Passive alwaysReroll = new Passive() {
+            @Override
+            public boolean shouldRerollFailedStatus(Character self, Character target, Move move,
+                                                     List<String> log) {
+                return true;
+            }
+        };
+        Character attacker = new Character("Dualist",
+                new Stats(200, 50, 10, 10, 10, 10),
+                Type.PHYSICAL, List.of(), List.of(alwaysReroll));
+        Character enemy = character("Enemy", 200, 10, 10);
+        Move sting = new Move("Sting", Type.PHYSICAL, 20, 100, 0, false, Status.BLEED, 30);
+
+        List<String> log = sequencedInts(1, 85, 100, 1)
+                .resolveAction(attacker, new ActionChoice(sting, List.of(enemy)));
+
+        assertEquals(Status.BLEED, enemy.getStatus());
+        assertTrue(log.stream().anyMatch(line -> line.contains("BLEED")));
+    }
+
+    @Test
+    public void statusRerollCanFailAgain() {
+        Passive alwaysReroll = new Passive() {
+            @Override
+            public boolean shouldRerollFailedStatus(Character self, Character target, Move move,
+                                                     List<String> log) {
+                return true;
+            }
+        };
+        Character attacker = new Character("Dualist",
+                new Stats(200, 50, 10, 10, 10, 10),
+                Type.PHYSICAL, List.of(), List.of(alwaysReroll));
+        Character enemy = character("Enemy", 200, 10, 10);
+        Move sting = new Move("Sting", Type.PHYSICAL, 20, 100, 0, false, Status.BLEED, 30);
+
+        sequencedInts(1, 85, 100, 100)
+                .resolveAction(attacker, new ActionChoice(sting, List.of(enemy)));
+
+        assertEquals(Status.NONE, enemy.getStatus());
+    }
+
+    private TurnResolver sequencedInts(int... values) {
+        RandomProvider random = new RandomProvider() {
+            private int i = 0;
+
+            @Override
+            public int nextInt(int min, int max) {
+                if (i < values.length) {
+                    return values[i++];
+                }
+                return min;
+            }
+        };
+        return new TurnResolver(new DamageCalculator(new TypeChart(), random), random);
+    }
+
+    @Test
+    public void onDamageTakenCanAddAPassiveWithoutCrashing() {
+        Character attacker = character("Attacker", 200, 80, 0);
+        Passive phasing = new Passive() {
+            @Override
+            public void onDamageTaken(Character self, Character source, int damageTaken, List<String> log) {
+                self.addPassive(new ExtraActionsPassive(1));
+            }
+        };
+        Character defender = new Character("Dragon",
+                new Stats(200, 10, 1, 10, 1, 10),
+                Type.FIRE, List.of(), List.of(phasing));
+        Move slash = new Move("Slash", Type.PHYSICAL, 50, 100, 0, false, Status.NONE, 0);
+
+        alwaysHits().resolveAction(attacker, new ActionChoice(slash, List.of(defender)));
+
+        assertTrue(defender.hasPassive(ExtraActionsPassive.class));
     }
 }

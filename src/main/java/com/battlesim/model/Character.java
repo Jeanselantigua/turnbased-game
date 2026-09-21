@@ -17,6 +17,8 @@ public class Character {
     private int statusTurnsRemaining;
     /** Snapshotted at apply time (e.g. inflictor attack for BLEED). 0 if unused. */
     private int statusMagnitude;
+    /** Extra turns to skip after a multi-turn paralysis proc. */
+    private int queuedSkipTurns;
     private Character siphonSource;
     private int siphonTurnsRemaining;
     private Character summoner;
@@ -31,6 +33,7 @@ public class Character {
         this.status = Status.NONE;
         this.statusTurnsRemaining = 0;
         this.statusMagnitude = 0;
+        this.queuedSkipTurns = 0;
         this.siphonTurnsRemaining = 0;
     }
 
@@ -47,6 +50,7 @@ public class Character {
     public Status getStatus() { return status; }
     public int getStatusTurnsRemaining() { return statusTurnsRemaining; }
     public int getStatusMagnitude() { return statusMagnitude; }
+    public int getQueuedSkipTurns() { return queuedSkipTurns; }
 
     /** Speed used by turn order. SLOW halves it (minimum 1). */
     public int getEffectiveSpeed() {
@@ -62,9 +66,28 @@ public class Character {
     }
 
     public void setStatus(Status status, int magnitude) {
+        if (this.status == Status.PARALYSIS && status != Status.PARALYSIS) {
+            queuedSkipTurns = 0;
+        }
         this.status = status;
         this.statusTurnsRemaining = status.getDefaultDurationTurns();
         this.statusMagnitude = status == Status.NONE ? 0 : Math.max(0, magnitude);
+    }
+
+    public void queueSkipTurns(int turns) {
+        if (turns <= 0) {
+            return;
+        }
+        queuedSkipTurns += turns;
+    }
+
+    /** True if this character must skip this action from a prior multi-turn paralysis proc. */
+    public boolean consumeQueuedSkip() {
+        if (queuedSkipTurns <= 0) {
+            return false;
+        }
+        queuedSkipTurns--;
+        return true;
     }
 
     /** Counts down timed statuses (e.g. CURSED). No-op when duration is infinite. */
@@ -74,6 +97,9 @@ public class Character {
         }
         statusTurnsRemaining--;
         if (statusTurnsRemaining == 0) {
+            if (this.status == Status.PARALYSIS) {
+                queuedSkipTurns = 0;
+            }
             this.status = Status.NONE;
             this.statusMagnitude = 0;
         }

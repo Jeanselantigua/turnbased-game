@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Lightweight AI for balance sims: recover when angered only if the foe is
- * already low, finish Blessed targets, start Perfect Enlightenment after
+ * already low, finish Blessed targets, start Meditate after
  * real 1v1 hits (or when allies are healthy), heal an injured ally when
  * possible, otherwise a random damaging move aimed at the lowest-HP legal target.
  */

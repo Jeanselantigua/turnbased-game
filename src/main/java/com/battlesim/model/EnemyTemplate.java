@@ -37,18 +37,16 @@ public class EnemyTemplate {
 
     /**
      * @param statMultiplier 1.0 = as written; dungeon waves pass a value &gt; 1 so later
-     *                       floors get harder. Scaling is not wired yet.
+     *                       floors get harder.
      */
     public Character createInstance(double statMultiplier) {
         Character spawned = character.createInstance();
         if (!immunities.isEmpty()) {
             spawned.addPassive(new StatusImmunityPassive(immunities));
         }
-        // TODO: if extraActionsPerTurn > 0, add an ExtraActionsPassive
         if (extraActionsPerTurn > 0) {
             spawned.addPassive(new ExtraActionsPassive(extraActionsPerTurn));
         }
-        // TODO: if statMultiplier != 1.0, call spawned.getStats().scaleAll(statMultiplier)
         if (statMultiplier != 1.0) {
             spawned.getStats().scaleAll(statMultiplier);
         }

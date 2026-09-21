@@ -6,7 +6,7 @@ alwaysApply: true
 # RPG Battle Sim — current phase
 
 **Stack:** Java, plain Eclipse project, package `com.battlesim`.  
-**Current phase: Phase 2 — Enemies, dungeon, climb sim (SKELETON ONLY).** Fill in order: enemy content → boss hooks → dungeon run → BalanceSim climb. Do not jump to Phases 3–5 unless asked.  
+**Current phase: Phase 2 complete.** Next is Phase 3 (XP / stat growth / move unlocks) unless asked otherwise.  
 **Source of truth:** `ROADMAP.md`. When a phase completes or design debt is paid, update both that file and this rule.
 
 ## Concept
@@ -32,11 +32,12 @@ Single-player turn-based RPG, Honkai Star Rail-style. Pre-selected teams fight e
 ## Settled combat rules
 
 - Bleed snapshots inflictor attack as `statusMagnitude`; ticks use 40% of that value, not the victim's attack
+- Dual Swordsman statuses are twice as effective: bleed snapshots 2× attack, paralysis skip-locks for 2 turns on proc
 - Monk holy bonus (60% magic attack) is added after mitigation and **ignores defense** by design
 
 ## Upcoming
 
-- **Phase 2 (in progress, skeleton):** EnemyRank / EnemyTemplate / Enemies; boss hooks (immunities, extra actions, phases as passives); dungeon waves; BalanceSim solo/duo/trio climb. Engine TODOs in TurnResolver, Battle, Stats.scaleAll, DungeonRun.run.
+- **Phase 2 (done):** Enemy roster, boss hooks, dungeon (60 floors, boss every 15, +0.15 stats every 15, party scale 0.75/0.90/1.00), BalanceSim solo/duo/trio climb.
 - **Phase 3:** XP, stat growth, move unlocks
 - **Phase 4:** items/equipment, drop tables, inventory
 - **Phase 5:** UI beyond console, README, resume packaging

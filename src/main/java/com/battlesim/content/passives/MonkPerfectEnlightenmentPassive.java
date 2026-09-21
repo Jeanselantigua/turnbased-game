@@ -1,7 +1,5 @@
 package com.battlesim.content.passives;
 
-import com.battlesim.engine.DamageCalculator;
-import com.battlesim.engine.TypeChart;
 import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
@@ -13,12 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Monk state machine for Perfect Enlightenment: Channel → Enlightened or Angered.
+ * Monk state machine: Meditate → Enlightened or Angered.
  *
-     * Team channel grants damage resist (still targetable). If an ally falls
-     * during the channel, the ritual fails and the monk becomes Angered.
- * opponent to disrupting moves. Enlightened staff hits deal reduced damage and
- * apply Blessed; Divine Blessing is typed Holy magic damage.
+ * Team Meditate grants damage resist (still targetable). If an ally falls
+ * during the channel, the ritual fails and the monk becomes Angered.
+ * opponent to disrupting moves. Enlightened lasts 6 of the monk's turns
+ * (+2 per Blessed stack applied), staff hits deal reduced damage and
+ * apply Blessed; Divine Blessing deals 100 + 8.5% of the target's max HP.
  */
 public class MonkPerfectEnlightenmentPassive implements Passive {
 
@@ -29,14 +28,16 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         ANGERED
     }
 
-    public static final String MOVE_NAME = "Perfect Enlightenment";
+    public static final String MOVE_NAME = "Meditate";
     public static final String SWING_NAME = "Heavy Staff Swing";
     public static final String RECOVER_NAME = "Recover";
 
-    public static final int CHANNEL_TURNS = 1;
+    public static final int CHANNEL_TURNS = 2;
     public static final int BLESSED_CAP = 3;
     public static final int COOLDOWN_TURNS = 1;
     public static final int SOLO_CHANNEL_MIN_HITS = 2;
+    public static final int ENLIGHTENED_TURNS = 6;
+    public static final int BLESSED_EXTENSION_TURNS = 2;
 
     /** Incoming damage kept during a team channel (60% resist). */
     public static final double TEAM_CHANNEL_DAMAGE_RESIST = 0.60;
@@ -55,9 +56,13 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     public static final double SOLO_DODGE_STACK = 0.08;
     public static final double TEAM_DODGE_CAP = 0.70;
     public static final double SOLO_DODGE_CAP = 0.50;
+    /** Dodge chance lost each time Perfect Dodge fails and the monk is hit. */
+    public static final double DODGE_HIT_PENALTY = 0.05;
+    /** Owner turns without a dodge before chance snaps back to base. */
+    public static final int DODGE_RESET_TURNS = 5;
 
-    public static final int DIVINE_DAMAGE_PER_STACK_TEAM = 22;
-    public static final int DIVINE_DAMAGE_PER_STACK_SOLO = 16;
+    public static final int DIVINE_BLESSING_BASE_DAMAGE = 100;
+    public static final double DIVINE_BLESSING_MAX_HP_RATIO = 0.085;
 
     /**
      * DECISION PENDING: (a) execute if target HP &lt; threshold, or
@@ -71,10 +76,10 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     public static final double ANGERED_EASY_BLOCK_CHANCE = 0.25;
 
     private final RandomProvider random;
-    private final DamageCalculator damageCalculator;
     private Phase phase = Phase.IDLE;
     private boolean teamChannel;
     private int channelTurnsRemaining;
+    private int enlightenedTurnsRemaining;
     private int idleHitsLanded;
     private MonkPerfectDodgePassive dodgePassive;
     private final List<Passive> storedPassives = new ArrayList<>();
@@ -85,7 +90,6 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
 
     public MonkPerfectEnlightenmentPassive(RandomProvider random) {
         this.random = random;
-        this.damageCalculator = new DamageCalculator(new TypeChart(), random);
     }
 
     public static Move createMove() {
@@ -112,6 +116,10 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         return channelTurnsRemaining;
     }
 
+    public int getEnlightenedTurnsRemaining() {
+        return enlightenedTurnsRemaining;
+    }
+
     public boolean isEnlightened() {
         return phase == Phase.ENLIGHTENED;
     }
@@ -132,6 +140,14 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         return teamChannel ? TEAM_DODGE_CAP : SOLO_DODGE_CAP;
     }
 
+    public double dodgeHitPenalty() {
+        return DODGE_HIT_PENALTY;
+    }
+
+    public int dodgeResetTurns() {
+        return DODGE_RESET_TURNS;
+    }
+
     public double counterDamageRatio() {
         return teamChannel ? TEAM_COUNTER_DAMAGE_RATIO : SOLO_COUNTER_DAMAGE_RATIO;
     }
@@ -145,6 +161,11 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         int after = target.getBlessedStacks();
         if (after > before) {
             log.add(target.getName() + " gains Blessed (" + after + "/" + BLESSED_CAP + ")!");
+            if (phase == Phase.ENLIGHTENED) {
+                enlightenedTurnsRemaining += BLESSED_EXTENSION_TURNS;
+                log.add("Enlightenment is extended! (" + enlightenedTurnsRemaining
+                        + " turns remaining)");
+            }
         }
     }
 
@@ -161,7 +182,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         if (failChannelIfAllyFallen(self, context, log)) {
             return;
         }
-        log.add(self.getName() + " continues channeling Perfect Enlightenment...");
+        log.add(self.getName() + " continues meditating...");
         channelTurnsRemaining--;
         if (channelTurnsRemaining <= 0) {
             becomeEnlightened(self, log);
@@ -171,6 +192,18 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     @Override
     public void onFieldChanged(Character self, BattleContext context, List<String> log) {
         failChannelIfAllyFallen(self, context, log);
+    }
+
+    @Override
+    public void onTurnStart(Character self, BattleContext context, List<String> log) {
+        if (phase != Phase.ENLIGHTENED) {
+            return;
+        }
+        if (enlightenedTurnsRemaining <= 0) {
+            endEnlightenment(self, log);
+            return;
+        }
+        enlightenedTurnsRemaining--;
     }
 
     @Override
@@ -235,7 +268,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     @Override
     public void onStatusReceived(Character self, Status status, Character source, List<String> log) {
         if (phase == Phase.CHANNELING && status == Status.STUN) {
-            log.add(self.getName() + "'s channel is interrupted!");
+            log.add(self.getName() + "'s Meditate is interrupted!");
             becomeAngered(self, log);
         }
     }
@@ -255,7 +288,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         } else if (phase == Phase.ENLIGHTENED) {
             tryDivineBlessing(self, targets, log);
         } else {
-            log.add(self.getName() + "'s Perfect Enlightenment has no effect.");
+            log.add(self.getName() + "'s Meditate has no effect.");
         }
     }
 
@@ -322,24 +355,41 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         channelTurnsRemaining = CHANNEL_TURNS;
         idleHitsLanded = 0;
         if (teamChannel) {
-            log.add(self.getName() + " begins Perfect Enlightenment and resists incoming damage!");
+            log.add(self.getName() + " begins Meditate and resists incoming damage!");
         } else {
-            log.add(self.getName() + " begins Perfect Enlightenment! Opponents are limited to disrupting moves.");
+            log.add(self.getName() + " begins Meditate! Opponents are limited to disrupting moves.");
         }
     }
 
     private void becomeEnlightened(Character self, List<String> log) {
         phase = Phase.ENLIGHTENED;
         channelTurnsRemaining = 0;
+        enlightenedTurnsRemaining = ENLIGHTENED_TURNS;
         storeAndRemove(self, MonkParryPassive.class);
         dodgePassive = new MonkPerfectDodgePassive(this, random);
         self.addPassive(dodgePassive);
         log.add(self.getName() + " reaches Perfect Enlightenment! Parry becomes Perfect Dodge.");
     }
 
+    private void endEnlightenment(Character self, List<String> log) {
+        phase = Phase.IDLE;
+        enlightenedTurnsRemaining = 0;
+        if (dodgePassive != null) {
+            self.removePassivesOfType(MonkPerfectDodgePassive.class);
+            dodgePassive = null;
+        }
+        for (Passive stored : storedPassives) {
+            self.addPassive(stored);
+        }
+        storedPassives.clear();
+        self.startMoveCooldown(MOVE_NAME, COOLDOWN_TURNS);
+        log.add(self.getName() + "'s Perfect Enlightenment fades.");
+    }
+
     private void becomeAngered(Character self, List<String> log) {
         phase = Phase.ANGERED;
         channelTurnsRemaining = 0;
+        enlightenedTurnsRemaining = 0;
         if (dodgePassive != null) {
             self.removePassivesOfType(MonkPerfectDodgePassive.class);
             dodgePassive = null;
@@ -372,7 +422,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
             }
             int stacks = target.getBlessedStacks();
             target.clearBlessedStacks();
-            int actual = dealDivineBlessingDamage(self, target, stacks, log);
+            int actual = dealDivineBlessingDamage(target);
             log.add(self.getName() + " unleashes Divine Blessing on " + target.getName()
                     + ", consuming " + stacks + " Blessed for " + actual + " damage!");
 
@@ -393,24 +443,14 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         if (blessedAnyone) {
             self.startMoveCooldown(MOVE_NAME, COOLDOWN_TURNS);
         } else {
-            log.add(self.getName() + "'s Perfect Enlightenment has no effect.");
+            log.add(self.getName() + "'s Divine Blessing has no effect.");
         }
     }
 
-    private int dealDivineBlessingDamage(Character self, Character target, int stacks,
-                                          List<String> log) {
-        int perStack = teamChannel ? DIVINE_DAMAGE_PER_STACK_TEAM : DIVINE_DAMAGE_PER_STACK_SOLO;
-        int power = stacks * perStack
-                + (int) Math.round(self.getStats().getMagicAttack() * 0.50);
-        Move blessing = new Move(MOVE_NAME, Type.HOLY, Math.max(1, power), 100, 0, true, Status.NONE, 0);
-        double damage = damageCalculator.calculateDamage(self, target, blessing);
-        for (Passive passive : self.getPassives()) {
-            damage = passive.modifyOutgoingDamage(self, target, blessing, damage, false, log);
-        }
-        for (Passive passive : target.getPassives()) {
-            damage = passive.modifyIncomingDamage(target, self, blessing, damage, log);
-        }
-        return target.getStats().applyDamage((int) Math.round(Math.max(0, damage)));
+    private int dealDivineBlessingDamage(Character target) {
+        int damage = DIVINE_BLESSING_BASE_DAMAGE
+                + (int) Math.round(target.getStats().getMaxHp() * DIVINE_BLESSING_MAX_HP_RATIO);
+        return target.getStats().applyDamage(Math.max(1, damage));
     }
 
     private void storeAndRemove(Character self, Class<? extends Passive> type) {
@@ -427,7 +467,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         }
         for (Character ally : context.alliesOf(self)) {
             if (ally != self && !ally.isSummon() && ally.isFainted()) {
-                log.add(self.getName() + "'s Perfect Enlightenment fails as their ally falls!");
+                log.add(self.getName() + "'s Meditate fails as their ally falls!");
                 becomeAngered(self, log);
                 return true;
             }
