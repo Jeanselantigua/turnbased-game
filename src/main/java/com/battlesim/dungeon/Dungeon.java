@@ -7,15 +7,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A sequence of waves. Enemy stats stay flat for {@link #BOSS_EVERY} floors,
- * then jump by {@link #SCALE_PER_BLOCK}. Those same floors are boss fights.
- * Solo and duo parties also get a lower {@link #partySizeScale(int)}.
+ * A sequence of waves. Enemy stats start at {@link #STARTING_SCALE}, stay
+ * flat for {@link #BOSS_EVERY} floors, then jump by {@link #SCALE_PER_BLOCK}.
+ * Those same floors are boss fights. Solo and duo parties also get a lower
+ * {@link #partySizeScale(int)}.
  */
 public class Dungeon {
 
     public static final int BOSS_EVERY = 15;
-    public static final int DEFAULT_FLOORS = 60;
-    public static final double SCALE_PER_BLOCK = 0.15;
+    public static final int DEFAULT_FLOORS = 100;
+    /** Opening block is weaker so early floors are not the spike. */
+    public static final double STARTING_SCALE = 0.85;
+    public static final double SCALE_PER_BLOCK = 0.20;
     /** Enemy stat multiplier vs a trio. Solo and duo fights are scaled down. */
     public static final double SOLO_SCALE = 0.75;
     public static final double DUO_SCALE = 0.90;
@@ -24,12 +27,17 @@ public class Dungeon {
     private final List<Wave> waves;
     private final double scalePerBlock;
     private final int blockSize;
+    private final double startingScale;
 
     public Dungeon(List<Wave> waves, double scalePerBlock) {
         this(waves, scalePerBlock, BOSS_EVERY);
     }
 
     public Dungeon(List<Wave> waves, double scalePerBlock, int blockSize) {
+        this(waves, scalePerBlock, blockSize, 1.0);
+    }
+
+    public Dungeon(List<Wave> waves, double scalePerBlock, int blockSize, double startingScale) {
         if (waves == null || waves.isEmpty()) {
             throw new IllegalArgumentException("A dungeon needs at least one wave");
         }
@@ -39,6 +47,7 @@ public class Dungeon {
         this.waves = List.copyOf(waves);
         this.scalePerBlock = scalePerBlock;
         this.blockSize = blockSize;
+        this.startingScale = startingScale;
     }
 
     public static Dungeon standard() {
@@ -60,7 +69,7 @@ public class Dungeon {
         for (int waveNumber = 1; waveNumber <= floors; waveNumber++) {
             waves.add(buildWave(waveNumber, normals, elites, bosses, random));
         }
-        return new Dungeon(waves, SCALE_PER_BLOCK, BOSS_EVERY);
+        return new Dungeon(waves, SCALE_PER_BLOCK, BOSS_EVERY, STARTING_SCALE);
     }
 
     public static boolean isBossWave(int waveNumber) {
@@ -90,10 +99,10 @@ public class Dungeon {
         return waves;
     }
 
-    /** Waves 1–15 = 1.0, 16–30 = 1.15, 31–45 = 1.30, and so on. */
+    /** Waves 1–15 = {@link #STARTING_SCALE}, then +{@link #SCALE_PER_BLOCK} each block. */
     public double scaleForWave(int waveNumber) {
         int block = Math.max(0, waveNumber - 1) / blockSize;
-        return 1.0 + block * scalePerBlock;
+        return startingScale + block * scalePerBlock;
     }
 
     /** Floor scale with a solo / duo / trio handicap. Trio is the baseline (1.0). */

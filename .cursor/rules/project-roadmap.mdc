@@ -6,7 +6,7 @@ alwaysApply: true
 # RPG Battle Sim — current phase
 
 **Stack:** Java, plain Eclipse project, package `com.battlesim`.  
-**Current phase: Phase 2 complete.** Next is Phase 3 (XP / stat growth / move unlocks) unless asked otherwise.  
+**Current phase: Phase 4 in progress** (inventory, ZZZ-style gear rolls, dungeon drops, console camp, 2pc/4pc sets).  
 **Source of truth:** `ROADMAP.md`. When a phase completes or design debt is paid, update both that file and this rule.
 
 ## Concept
@@ -31,13 +31,14 @@ Single-player turn-based RPG, Honkai Star Rail-style. Pre-selected teams fight e
 
 ## Settled combat rules
 
-- Bleed snapshots inflictor attack as `statusMagnitude`; ticks use 40% of that value, not the victim's attack
+- Bleed snapshots inflictor attack as `statusMagnitude`; ticks use 40% of that value, not the victim's attack (BLEED moves, not Champion)
 - Dual Swordsman statuses are twice as effective: bleed snapshots 2× attack, paralysis skip-locks for 2 turns on proc
 - Monk holy bonus (60% magic attack) is added after mitigation and **ignores defense** by design
+- Statuses coexist (no override). Burn/poison/bleed/slow stack +15% effectiveness (duration stays). Stun/para/curse/shield/self-shield refresh to a fresh apply. All effects tick on the victim's turn.
 
 ## Upcoming
 
-- **Phase 2 (done):** Enemy roster, boss hooks, dungeon (60 floors, boss every 15, +0.15 stats every 15, party scale 0.75/0.90/1.00), BalanceSim solo/duo/trio climb.
-- **Phase 3:** XP, stat growth, move unlocks
-- **Phase 4:** items/equipment, drop tables, inventory
-- **Phase 5:** UI beyond console, README, resume packaging
+- **Phase 2 (done):** Enemy roster, boss hooks, dungeon (100 floors, boss every 15, start x0.85 then +0.20 stats every 15, party scale 0.75/0.90/1.00), BalanceSim solo/duo/trio climb.
+- **Phase 3 (done):** Starting stats ~half, XP, auto +4 HP / +1 SPD per level, +1 stat point (HP +3/+4, combat +3/+4, Speed +2/+3), 4-move ladder (1/6/12/18 ult), move points (+5 power / +5% scaling). No dungeon BST cap — players spend points freely. Sim AI even-spreads leftover points with a slight specialty bias. BalanceSim 1v1/3v3 uses Phase 2 stats.
+- **Phase 4 (in progress):** 6-slot gear (main + 5 subs, rolls every 3 levels to +30), 2pc/4pc set bonuses, party inventory, dungeon gold/drops, console camp.
+- **Phase 5:** UI beyond console, README, resume packaging. Augments as a visible skill tree.

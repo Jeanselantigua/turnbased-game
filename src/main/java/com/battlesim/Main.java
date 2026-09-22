@@ -4,6 +4,7 @@ import com.battlesim.content.PlayableCharacters;
 import com.battlesim.dungeon.Dungeon;
 import com.battlesim.dungeon.DungeonResult;
 import com.battlesim.dungeon.DungeonRun;
+import com.battlesim.dungeon.ConsoleCamp;
 import com.battlesim.engine.ActionChoice;
 import com.battlesim.engine.Battle;
 import com.battlesim.engine.MoveSelector;
@@ -12,6 +13,8 @@ import com.battlesim.model.Character;
 import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.Move;
 import com.battlesim.model.Team;
+import com.battlesim.model.Inventory;
+import com.battlesim.progress.ConsoleStatAllocator;
 import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,10 +59,14 @@ public class Main {
         } else {
             System.out.println();
             System.out.println("Dungeon: " + Dungeon.DEFAULT_FLOORS + " floors, boss every "
-                    + Dungeon.BOSS_EVERY + ". Party of " + playerTeam.size()
+                    + Dungeon.BOSS_EVERY + ", enemies start at x" + Dungeon.STARTING_SCALE
+                    + " then +" + Dungeon.SCALE_PER_BLOCK + " every " + Dungeon.BOSS_EVERY
+                    + ". Party of " + playerTeam.size()
                     + " (enemy stats x" + Dungeon.partySizeScale(playerTeam.size()) + ").");
+            Inventory bag = new Inventory();
             DungeonResult result = DungeonRun.run(
-                    playerTeam, Dungeon.standard(random), consoleSelector, random, false, true);
+                    playerTeam, Dungeon.standard(random), consoleSelector, random, false, true,
+                    new ConsoleStatAllocator(scanner), bag, new ConsoleCamp(scanner, random));
             System.out.println();
             if (result.clearedAll()) {
                 System.out.println("Cleared all " + result.getWavesCleared() + " waves!");

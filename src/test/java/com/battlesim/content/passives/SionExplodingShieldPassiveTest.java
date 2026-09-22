@@ -24,7 +24,7 @@ public class SionExplodingShieldPassiveTest {
 
     @Test
     public void sionTemplateHasRoarAndShieldPassive() {
-        Character sion = PlayableCharacters.sion().createInstance();
+        Character sion = PlayableCharacters.sion().createFullyLearnedInstance();
         assertTrue(sion.hasPassive(SionExplodingShieldPassive.class));
         Move roar = sion.getMoveByName(SionExplodingShieldPassive.MOVE_NAME);
         assertEquals(Status.SELF_SHIELD, roar.getInflictedStatus());

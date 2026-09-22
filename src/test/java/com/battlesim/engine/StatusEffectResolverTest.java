@@ -251,4 +251,98 @@ public class StatusEffectResolverTest {
         assertEquals(0, victim.getStatusMagnitude());
         assertTrue(log.stream().anyMatch(line -> line.contains("no longer bleeding")));
     }
+
+    @Test
+    public void multipleDotsTickTogetherOnTheVictimsTurn() {
+        Character victim = character("Victim", 200, 10, 100);
+        victim.setStatus(Status.BURN);
+        victim.setStatus(Status.POISON);
+        victim.setStatus(Status.BLEED, 100);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyStartOfTurnEffects(victim, log);
+
+        assertEquals(124, victim.getStats().getCurrentHp());
+        assertTrue(victim.hasStatus(Status.BURN));
+        assertTrue(victim.hasStatus(Status.POISON));
+        assertTrue(victim.hasStatus(Status.BLEED));
+        assertTrue(log.stream().anyMatch(line -> line.contains("burn")));
+        assertTrue(log.stream().anyMatch(line -> line.contains("poison")));
+        assertTrue(log.stream().anyMatch(line -> line.contains("bleed")));
+    }
+
+    @Test
+    public void reapplyingBurnRaisesEffectivenessWithoutExtendingDuration() {
+        Character victim = character("Victim", 200, 10, 10);
+        victim.setStatus(Status.BURN);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyStartOfTurnEffects(victim, log);
+        assertEquals(180, victim.getStats().getCurrentHp());
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.BURN));
+
+        victim.applyStatus(Status.BURN, 0);
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.BURN));
+        assertEquals(1.15, victim.getStatusEffectiveness(Status.BURN), 0.0001);
+
+        resolver.applyStartOfTurnEffects(victim, log);
+        assertEquals(157, victim.getStats().getCurrentHp());
+        assertEquals(1, victim.getStatusTurnsRemaining(Status.BURN));
+    }
+
+    @Test
+    public void reapplyingCurseResetsDurationToAFreshCopy() {
+        Character victim = character("Victim", 200, 10, 100);
+        victim.setStatus(Status.CURSED);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        resolver.applyStartOfTurnEffects(victim, new ArrayList<>());
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.CURSED));
+
+        victim.applyStatus(Status.CURSED, 0);
+        assertEquals(3, victim.getStatusTurnsRemaining(Status.CURSED));
+        assertEquals(1.0, victim.getStatusEffectiveness(Status.CURSED), 0.0001);
+    }
+
+    @Test
+    public void reapplyingSlowRaisesPenaltyWithoutExtendingDuration() {
+        Character victim = character("Victim", 200, 10, 10);
+        victim.setStatus(Status.SLOW);
+        assertEquals(5, victim.getEffectiveSpeed());
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        resolver.applyStartOfTurnEffects(victim, new ArrayList<>());
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.SLOW));
+
+        victim.applyStatus(Status.SLOW, 0);
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.SLOW));
+        assertEquals(4, victim.getEffectiveSpeed());
+    }
+
+    @Test
+    public void reapplyingParalysisResetsDuration() {
+        Character victim = character("Victim", 200, 10, 10);
+        victim.setStatus(Status.PARALYSIS);
+
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        resolver.applyStartOfTurnEffects(victim, new ArrayList<>());
+        assertEquals(2, victim.getStatusTurnsRemaining(Status.PARALYSIS));
+
+        victim.applyStatus(Status.PARALYSIS, 2);
+        assertEquals(3, victim.getStatusTurnsRemaining(Status.PARALYSIS));
+        assertEquals(2, victim.getStatusMagnitude(Status.PARALYSIS));
+        assertEquals(0, victim.getQueuedSkipTurns());
+    }
+
+    @Test
+    public void shieldReplacesExistingShieldInsteadOfStacking() {
+        Character target = character("Target", 200, 10, 10);
+        StatusEffectResolver resolver = new StatusEffectResolver();
+        List<String> log = new ArrayList<>();
+        resolver.applyShield(target, 40, log);
+        resolver.applyShield(target, 100, log);
+        assertEquals(100, target.getStats().getShieldHp());
+    }
 }

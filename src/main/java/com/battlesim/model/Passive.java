@@ -50,8 +50,34 @@ public interface Passive {
         return false;
     }
 
+    /** Adds to displayed and rolled crit rate (percent). */
+    default int modifyCritRate(Character self, Move move, int ratePercent) {
+        return ratePercent;
+    }
+
+    /** Adds to displayed and applied crit damage (percent). */
+    default int modifyCritDamage(Character self, Move move, int damagePercent) {
+        return damagePercent;
+    }
+
+    /** Party-wide crit granted to {@code ally} (e.g. Champion's Gift). */
+    default boolean rollBonusCritForAlly(Character self, Character ally, Move move) {
+        return false;
+    }
+
     default double modifyOutgoingDamage(Character self, Character target, Move move,
                                          double damage, boolean isCrit, List<String> log) {
+        return damage;
+    }
+
+    /**
+     * Outgoing damage hook when this character's passive granted a crit (or other
+     * modifier) to a living ally's attack.
+     */
+    default double modifyOutgoingDamageGrantedToAlly(Character self, Character ally,
+                                                      Character target, Move move,
+                                                      double damage, boolean isCrit,
+                                                      List<String> log) {
         return damage;
     }
 
@@ -72,6 +98,15 @@ public interface Passive {
 
     default void onActionResolved(Character self, Move move, List<Character> targets,
                                    BattleContext context, List<String> log) {
+    }
+
+    /**
+     * After the chosen move's hits resolve, extra hits from other Moves
+     * (e.g. Electric Whirlwind's physical slash after the lightning one).
+     */
+    default List<Move> followUpHits(Character self, Move move, List<Character> targets,
+                                     BattleContext context, List<String> log) {
+        return List.of();
     }
 
     /**
@@ -108,6 +143,11 @@ public interface Passive {
     default void onDamageTaken(Character self, Character attacker, int damageTaken, List<String> log) {
     }
 
+    default void onDamageTaken(Character self, Character attacker, int damageTaken, List<String> log,
+                               BattleContext context) {
+        onDamageTaken(self, attacker, damageTaken, log);
+    }
+
     /** True while the owner should skip their action (e.g. channeling). */
     default boolean skipsOwnAction(Character self) {
         return false;
@@ -130,6 +170,15 @@ public interface Passive {
     default void onAttackConnected(Character self, Character target, Move move,
                                     int damageDealt, boolean isCrit, boolean blocked,
                                     List<String> log, BattleContext context) {
+    }
+
+    /**
+     * Called on living allies after {@code attacker}'s hostile hit connects.
+     * {@code self} is the ally receiving the hook, not the attacker.
+     */
+    default void onAllyAttackConnected(Character self, Character attacker, Character target,
+                                        Move move, int damageDealt, boolean isCrit, boolean blocked,
+                                        List<String> log, BattleContext context) {
     }
 
     /** Separate dodge roll after a hit is confirmed. */

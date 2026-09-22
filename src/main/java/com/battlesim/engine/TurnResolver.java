@@ -41,6 +41,7 @@ public class TurnResolver {
         log.add(actor.getName() + " uses " + move.getName() + "!");
 
         resolveHits(actor, move, choice.getTargets(), context, log);
+        resolveFollowUps(actor, move, choice.getTargets(), context, log);
 
         if (!move.targetsAllies() && !actor.isFainted()) {
             boolean repeat = false;
@@ -51,7 +52,12 @@ public class TurnResolver {
             }
             if (repeat) {
                 resolveHits(actor, move, choice.getTargets(), context, log);
+                resolveFollowUps(actor, move, choice.getTargets(), context, log);
             }
+        }
+
+        if (move.getCooldownTurns() > 0) {
+            actor.startMoveCooldown(move.getName(), move.getCooldownTurns());
         }
 
         for (Passive passive : snapshotPassives(actor)) {
@@ -63,12 +69,41 @@ public class TurnResolver {
 
     private void resolveHits(Character actor, Move move, List<Character> targets,
                               BattleContext context, List<String> log) {
-        for (Character target : targets) {
-            if (actor.isFainted() || target.isFainted()) {
-                continue;
-            }
-            resolveHitOnTarget(actor, move, target, context, log);
+        int hitCount = hitCount(move);
+        if (hitCount > 1) {
+            log.add(move.getName() + " strikes " + hitCount + " times!");
         }
+        for (int hit = 0; hit < hitCount; hit++) {
+            for (Character target : targets) {
+                if (actor.isFainted() || target.isFainted()) {
+                    continue;
+                }
+                resolveHitOnTarget(actor, move, target, context, log);
+            }
+        }
+    }
+
+    private void resolveFollowUps(Character actor, Move move, List<Character> targets,
+                                   BattleContext context, List<String> log) {
+        if (move.targetsAllies() || actor.isFainted()) {
+            return;
+        }
+        for (Passive passive : snapshotPassives(actor)) {
+            for (Move extra : passive.followUpHits(actor, move, targets, context, log)) {
+                if (extra != null) {
+                    resolveHits(actor, extra, targets, context, log);
+                }
+            }
+        }
+    }
+
+    private int hitCount(Move move) {
+        int min = move.getMinHits();
+        int max = move.getMaxHits();
+        if (min >= max) {
+            return min;
+        }
+        return randomProvider.nextInt(min, max);
     }
 
     private void resolveHitOnTarget(Character actor, Move move, Character target,
@@ -119,15 +154,45 @@ public class TurnResolver {
         }
 
         boolean isCrit = false;
+        int critRate = actor.getCritRate(move);
+        if (critRate > 0 && randomProvider.nextDouble() * 100.0 < critRate) {
+            isCrit = true;
+        }
         for (Passive passive : snapshotPassives(actor)) {
             if (passive.rollBonusCrit(actor, move)) {
                 isCrit = true;
             }
         }
+        if (context != null) {
+            for (Character ally : context.alliesOf(actor)) {
+                if (ally == actor || ally.isFainted()) {
+                    continue;
+                }
+                for (Passive passive : snapshotPassives(ally)) {
+                    if (passive.rollBonusCritForAlly(ally, actor, move)) {
+                        isCrit = true;
+                    }
+                }
+            }
+        }
 
         double damage = damageCalculator.calculateDamage(actor, target, move);
+        if (isCrit) {
+            damage *= actor.critMultiplier(move);
+        }
         for (Passive passive : snapshotPassives(actor)) {
             damage = passive.modifyOutgoingDamage(actor, target, move, damage, isCrit, log);
+        }
+        if (context != null) {
+            for (Character ally : context.alliesOf(actor)) {
+                if (ally == actor || ally.isFainted()) {
+                    continue;
+                }
+                for (Passive passive : snapshotPassives(ally)) {
+                    damage = passive.modifyOutgoingDamageGrantedToAlly(
+                            ally, actor, target, move, damage, isCrit, log);
+                }
+            }
         }
         double damageBeforeIncoming = damage;
         for (Passive passive : snapshotPassives(target)) {
@@ -149,7 +214,7 @@ public class TurnResolver {
             if (actualDamage > 0) {
                 log.add(target.getName() + " took " + actualDamage + " damage!" + (isCrit ? " Critical hit!" : ""));
                 for (Passive passive : snapshotPassives(target)) {
-                    passive.onDamageTaken(target, actor, actualDamage, log);
+                    passive.onDamageTaken(target, actor, actualDamage, log, context);
                 }
 
                 tryApplyStatus(move, actor, target, log);
@@ -170,6 +235,17 @@ public class TurnResolver {
         for (Passive passive : snapshotPassives(actor)) {
             passive.onAttackConnected(actor, target, move, finalDamage, isCrit, blocked, log, context);
         }
+        if (context != null) {
+            for (Character ally : context.alliesOf(actor)) {
+                if (ally == actor || ally.isFainted()) {
+                    continue;
+                }
+                for (Passive passive : snapshotPassives(ally)) {
+                    passive.onAllyAttackConnected(ally, actor, target, move, finalDamage, isCrit,
+                            blocked, log, context);
+                }
+            }
+        }
     }
 
     /** Copy so a hook can add/remove passives without crashing the iterator. */
@@ -182,14 +258,14 @@ public class TurnResolver {
             log.add(actor.getName() + " is paralyzed and can't move!");
             return false;
         }
-        if (actor.getStatus() == Status.STUN) {
+        if (actor.hasStatus(Status.STUN)) {
             log.add(actor.getName() + " is stunned and can't move!");
-            actor.setStatus(Status.NONE);
+            actor.clearStatus(Status.STUN);
             return false;
         }
-        if (actor.getStatus() == Status.PARALYSIS && randomProvider.nextDouble() < 0.25) {
+        if (actor.hasStatus(Status.PARALYSIS) && randomProvider.nextDouble() < 0.25) {
             log.add(actor.getName() + " is paralyzed and can't move!");
-            int skipTurns = Math.max(1, actor.getStatusMagnitude());
+            int skipTurns = Math.max(1, actor.getStatusMagnitude(Status.PARALYSIS));
             if (skipTurns > 1) {
                 actor.queueSkipTurns(skipTurns - 1);
             }
@@ -201,7 +277,7 @@ public class TurnResolver {
     private void resolveAllyMove(Character actor, Move move, Character target, List<String> log) {
         if (move.getInflictedStatus() == Status.HEAL) {
             int before = target.getStats().getCurrentHp();
-            statusEffectResolver.applyHeal(target, log);
+            statusEffectResolver.applyHeal(target, actor.moveScaling(move), log);
             int healed = target.getStats().getCurrentHp() - before;
             for (Passive passive : snapshotPassives(actor)) {
                 passive.onAllyHealed(actor, target, healed, log);
@@ -210,10 +286,11 @@ public class TurnResolver {
         Status status = move.getInflictedStatus();
         if (status == Status.SHIELD || status == Status.SELF_SHIELD) {
             Character shielded = status == Status.SELF_SHIELD ? actor : target;
-            statusEffectResolver.applyShield(shielded, move.getPower(), log);
+            int shieldPower = actor.effectivePower(move);
+            statusEffectResolver.applyShield(shielded, shieldPower, log);
             if (status == Status.SHIELD) {
                 for (Passive passive : snapshotPassives(actor)) {
-                    passive.onAllyShielded(actor, shielded, move.getPower(), log);
+                    passive.onAllyShielded(actor, shielded, shieldPower, log);
                 }
             }
         }
@@ -232,27 +309,44 @@ public class TurnResolver {
             }
             return;
         }
-        if (target.getStatus() != Status.NONE) {
+        if (status == Status.WOUNDED) {
+            if (isImmune(target, status, log)) {
+                return;
+            }
+            if (rollStatusChance(actor, target, move, log)) {
+                target.addWoundStacks(1, status.getDefaultDurationTurns());
+                log.add(target.getName() + " is wounded (" + target.getWoundStacks() + ")!");
+            }
+            return;
+        }
+        if (isImmune(target, status, log)) {
             return;
         }
         if (rollStatusChance(actor, target, move, log)) {
-            Status applied = move.getInflictedStatus();
-            for (Passive passive : snapshotPassives(target)) {
-                if (passive.isImmuneTo(applied)) {
-                    log.add(target.getName() + " resists " + applied + "!");
-                    return;
-                }
-            }
-            int magnitude = applied == Status.BLEED ? actor.getStats().getAttack() : 0;
+            int magnitude = status == Status.BLEED ? actor.getStats().getAttack() : 0;
             for (Passive passive : snapshotPassives(actor)) {
-                magnitude = passive.modifyOutgoingStatusMagnitude(actor, target, applied, magnitude, log);
+                magnitude = passive.modifyOutgoingStatusMagnitude(actor, target, status, magnitude, log);
             }
-            target.setStatus(applied, magnitude);
-            log.add(target.getName() + " is now " + applied + "!");
+            String result = target.applyStatus(status, magnitude);
+            if ("stacked".equals(result)) {
+                log.add(target.getName() + "'s " + status + " intensifies!");
+            } else {
+                log.add(target.getName() + " is now " + status + "!");
+            }
             for (Passive passive : snapshotPassives(target)) {
-                passive.onStatusReceived(target, applied, actor, log);
+                passive.onStatusReceived(target, status, actor, log);
             }
         }
+    }
+
+    private static boolean isImmune(Character target, Status status, List<String> log) {
+        for (Passive passive : snapshotPassives(target)) {
+            if (passive.isImmuneTo(status)) {
+                log.add(target.getName() + " resists " + status + "!");
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean rollStatusChance(Character actor, Character target, Move move, List<String> log) {

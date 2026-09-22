@@ -9,13 +9,32 @@ public class CharacterTemplate {
     private final String name;
     private final int maxHp, attack, defense, magicAttack, magicDefense, speed;
     private final Type affinity;
-    private final List<Move> moves;
+    private final MoveKit kit;
     private final List<Supplier<Passive>> passiveSuppliers;
+    private final List<StatKind> specialties;
 
     public CharacterTemplate(String name, int maxHp, int attack, int defense,
                               int magicAttack, int magicDefense, int speed,
                               Type affinity, List<Move> moves,
                               List<Supplier<Passive>> passiveSuppliers) {
+        this(name, maxHp, attack, defense, magicAttack, magicDefense, speed,
+                affinity, MoveKit.alwaysKnown(moves), passiveSuppliers, List.of());
+    }
+
+    public CharacterTemplate(String name, int maxHp, int attack, int defense,
+                              int magicAttack, int magicDefense, int speed,
+                              Type affinity, List<Move> moves,
+                              List<Supplier<Passive>> passiveSuppliers,
+                              List<StatKind> specialties) {
+        this(name, maxHp, attack, defense, magicAttack, magicDefense, speed,
+                affinity, MoveKit.alwaysKnown(moves), passiveSuppliers, specialties);
+    }
+
+    public CharacterTemplate(String name, int maxHp, int attack, int defense,
+                              int magicAttack, int magicDefense, int speed,
+                              Type affinity, MoveKit kit,
+                              List<Supplier<Passive>> passiveSuppliers,
+                              List<StatKind> specialties) {
         this.name = name;
         this.maxHp = maxHp;
         this.attack = attack;
@@ -24,8 +43,9 @@ public class CharacterTemplate {
         this.magicDefense = magicDefense;
         this.speed = speed;
         this.affinity = affinity;
-        this.moves = moves;
+        this.kit = kit;
         this.passiveSuppliers = passiveSuppliers;
+        this.specialties = List.copyOf(specialties);
     }
 
     /** Convenience constructor for a template with no passives. */
@@ -36,14 +56,38 @@ public class CharacterTemplate {
                 affinity, moves, List.of());
     }
 
-    /** Spawns a fresh Character for battle — full HP, no status, new Passive instances. */
+    /** Spawns a fresh Character — full HP, no status, only moves unlocked at level 1. */
     public Character createInstance() {
+        return spawn(kit.unlockedAt(1));
+    }
+
+    /**
+     * All kit moves known, still this template's stats. For combat/AI tests that
+     * need Meditate, Roar, etc. without walking the XP ladder.
+     */
+    public Character createFullyLearnedInstance() {
+        return spawn(kit.unlockedAt(Integer.MAX_VALUE));
+    }
+
+    /**
+     * Same kit, passives, and specialties with different combat stats
+     * (e.g. Phase 2 arena numbers on the current move ladder).
+     */
+    public CharacterTemplate withStats(int maxHp, int attack, int defense,
+                                       int magicAttack, int magicDefense, int speed) {
+        return new CharacterTemplate(name, maxHp, attack, defense, magicAttack,
+                magicDefense, speed, affinity, kit, passiveSuppliers, specialties);
+    }
+
+    private Character spawn(List<Move> knownMoves) {
         Stats stats = new Stats(maxHp, attack, defense, magicAttack, magicDefense, speed);
         List<Passive> passives = passiveSuppliers.stream()
                 .map(Supplier::get)
                 .collect(Collectors.toList());
-        return new Character(name, stats, affinity, List.copyOf(moves), passives);
+        return new Character(name, stats, affinity, knownMoves, passives, specialties, kit);
     }
 
     public String getName() { return name; }
+    public List<StatKind> getSpecialties() { return specialties; }
+    public MoveKit getKit() { return kit; }
 }

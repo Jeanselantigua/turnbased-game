@@ -23,7 +23,8 @@ public class DualSwordsmanDoubleHitPassive implements Passive {
     @Override
     public boolean shouldRepeatAction(Character self, Move move, List<Character> targets,
                                        BattleContext context, List<String> log) {
-        if (move.targetsAllies() || random.nextDouble() >= REPEAT_CHANCE) {
+        if (move.targetsAllies() || ElectricWhirlwindPassive.MOVE_NAME.equals(move.getName())
+                || random.nextDouble() >= REPEAT_CHANCE) {
             return false;
         }
         log.add(self.getName() + " strikes again with " + move.getName() + "!");

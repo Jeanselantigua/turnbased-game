@@ -18,6 +18,8 @@ public class Move {
     private final Status inflictedStatus;  // Status.NONE if this move doesn't apply one
     private final int statusChance;        // 0-100, chance to apply inflictedStatus on hit
     private final int cooldownTurns;       // 0 = no cooldown; remaining tracked on Character
+    private final int minHits;
+    private final int maxHits;
 
     public Move(String name, Type type, int power, int accuracy, int priority,
                 boolean isMagic, Status inflictedStatus, int statusChance) {
@@ -26,6 +28,13 @@ public class Move {
 
     public Move(String name, Type type, int power, int accuracy, int priority,
                 boolean isMagic, Status inflictedStatus, int statusChance, int cooldownTurns) {
+        this(name, type, power, accuracy, priority, isMagic, inflictedStatus, statusChance,
+                cooldownTurns, 1, 1);
+    }
+
+    public Move(String name, Type type, int power, int accuracy, int priority,
+                boolean isMagic, Status inflictedStatus, int statusChance, int cooldownTurns,
+                int minHits, int maxHits) {
         this.name = name;
         this.type = type;
         this.power = power;
@@ -35,6 +44,8 @@ public class Move {
         this.inflictedStatus = inflictedStatus;
         this.statusChance = statusChance;
         this.cooldownTurns = Math.max(0, cooldownTurns);
+        this.minHits = Math.max(1, minHits);
+        this.maxHits = Math.max(this.minHits, maxHits);
     }
 
     public String getName() {
@@ -71,6 +82,14 @@ public class Move {
 
     public int getCooldownTurns() {
         return cooldownTurns;
+    }
+
+    public int getMinHits() {
+        return minHits;
+    }
+
+    public int getMaxHits() {
+        return maxHits;
     }
 
     public boolean targetsAllies() {

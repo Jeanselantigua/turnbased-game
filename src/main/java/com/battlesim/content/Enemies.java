@@ -12,14 +12,13 @@ import java.util.Set;
 
 /**
  * Enemy roster, same idea as {@link PlayableCharacters}.
- * Replace the Dummy entries with real normals, elites, and bosses.
  */
 public class Enemies {
 
     public static EnemyTemplate goblin() {
         Move jab = new Move("Jab", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
         CharacterTemplate body = new CharacterTemplate(
-                "goblin", 80, 20, 15, 0, 10, 25,
+                "goblin", 60, 15, 15, 0, 10, 25,
                 Type.MONSTER, List.of(jab));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
@@ -28,7 +27,7 @@ public class Enemies {
         
         Move bite = new Move("Bite", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
         CharacterTemplate body = new CharacterTemplate(
-                "Wolf", 100, 30, 20, 0, 15, 30,
+                "Wolf", 80, 25, 15, 0, 15, 25,
                 Type.PHYSICAL, List.of(bite));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
@@ -37,7 +36,7 @@ public class Enemies {
         Move web = new Move("Web", Type.PHYSICAL, 20, 100, 0, false, Status.SLOW, 100);
         Move sting = new Move("Poison Strike", Type.PHYSICAL, 20, 100, 0, false, Status.POISON, 80);
         CharacterTemplate body = new CharacterTemplate(
-                "Spider", 100, 30, 20, 0, 15, 30,
+                "Spider", 80, 20, 20, 0, 15, 20,
                 Type.PHYSICAL, List.of(web, sting));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
@@ -75,44 +74,35 @@ public class Enemies {
     }
 
     public static EnemyTemplate swordskeleton() {
-        Move slash = new Move("Slash", Type.PHYSICAL, 45, 90, 0, false, Status.BLEED, 20);
-        Move sheild = new Move("Shield", Type.PHYSICAL, 35, 100, 1, false, Status.SELF_SHIELD, 100);
+        Move slash = new Move("Slash", Type.PHYSICAL, 25, 90, 0, false, Status.BLEED, 20);
+        Move sheild = new Move("Shield", Type.PHYSICAL, 15, 100, 1, false, Status.SELF_SHIELD, 100);
         CharacterTemplate body = new CharacterTemplate(
-                "Swords Skeleton", 160, 45, 25, 0, 20, 25,
+                "Swords Skeleton", 120, 35, 25, 0, 20, 16,
                 Type.UNDEAD, List.of(slash, sheild));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
     
     public static EnemyTemplate bowskeleton() {
-        Move arrow = new Move("Bow Shot", Type.PHYSICAL, 45, 90, 0, false, Status.NONE, 20);
-        Move poisonarrow = new Move("Poison Arrow", Type.PHYSICAL, 35, 90, 0, false, Status.POISON, 20);
-        Move shockarrow = new Move("Shock Arrow", Type.PHYSICAL, 35, 90, 0, false, Status.PARALYSIS, 20);
+        Move arrow = new Move("Bow Shot", Type.PHYSICAL, 25, 90, 0, false, Status.NONE, 20);
+        Move poisonarrow = new Move("Poison Arrow", Type.PHYSICAL, 15, 90, 0, false, Status.POISON, 20);
+        Move shockarrow = new Move("Shock Arrow", Type.PHYSICAL, 15, 90, 0, false, Status.PARALYSIS, 20);
 
         CharacterTemplate body = new CharacterTemplate(
-                "Bow Skeleton", 120, 45, 25, 0, 20, 35,
+                "Bow Skeleton", 100, 35, 25, 0, 20, 25,
                 Type.UNDEAD, List.of(arrow, poisonarrow, shockarrow));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
 
     public static EnemyTemplate ghoul() {
-        Move bite = new Move("Bite", Type.UNDEAD, 35, 90, 0, false, Status.CURSED, 20);
+        Move bite = new Move("Bite", Type.UNDEAD, 20, 90, 0, false, Status.CURSED, 20);
         
         CharacterTemplate body = new CharacterTemplate(
-                "Ghoul", 160, 35, 25, 10, 20, 30,
+                "Ghoul", 120, 25, 25, 10, 20, 30,
                 Type.UNDEAD, List.of(bite));
         return new EnemyTemplate(body, EnemyRank.NORMAL);
     }
 
     //Elite enemies
-    public static EnemyTemplate eliteDummy() {
-        Move smash = new Move("Smash", Type.PHYSICAL, 45, 90, 0, false, Status.STUN, 20);
-        Move slam = new Move("Slam", Type.PHYSICAL, 35, 100, 0, false, Status.NONE, 0);
-        CharacterTemplate body = new CharacterTemplate(
-                "Elite Dummy", 160, 35, 25, 10, 20, 30,
-                Type.PHYSICAL, List.of(smash, slam));
-        return new EnemyTemplate(body, EnemyRank.ELITE);
-    }
-
     public static EnemyTemplate orc() {
         Move slam = new Move("Club Slam", Type.PHYSICAL, 45, 100, 0, false, Status.NONE, 0);
         CharacterTemplate body = new CharacterTemplate(
@@ -131,16 +121,6 @@ public class Enemies {
     }
 
     //Boss enemies
-    public static EnemyTemplate bossDummy() {
-        Move crush = new Move("Crush", Type.PHYSICAL, 60, 90, 0, false, Status.NONE, 0);
-        Move roar = new Move("Roar", Type.PHYSICAL, 20, 100, 0, false, Status.STUN, 30);
-        CharacterTemplate body = new CharacterTemplate(
-                "Boss Dummy", 600, 50, 35, 20, 30, 28,
-                Type.PHYSICAL, List.of(crush, roar));
-        // extraActions=1 and STUN immunity are data only until EnemyTemplate.createInstance wires them
-        return new EnemyTemplate(body, EnemyRank.BOSS, Set.of(Status.STUN), 1);
-    }
-
     public static EnemyTemplate hulk() {
         Move crush = new Move("Smash", Type.PHYSICAL, 60, 90, 0, false, Status.NONE, 0);
         Move roar = new Move("Roar", Type.PHYSICAL, 20, 100, 0, false, Status.STUN, 30);
@@ -224,10 +204,8 @@ public class Enemies {
             swordskeleton(), 
             bowskeleton(), 
             ghoul(), 
-            eliteDummy(), 
             orc(),
             greaterFireSpirit(),
-            bossDummy(), 
             hulk(),
             dragon(),
             goblinKing(),

@@ -38,68 +38,68 @@ public class StatusEffectResolver {
             return;
         }
 
-        Status status = character.getStatus();
-        if (status == Status.SLOW) {
-            character.decrementStatusDuration();
-            if (character.getStatus() == Status.NONE) {
-                log.add(character.getName() + " is no longer slowed!");
+        if (character.decrementWoundDuration()) {
+            log.add(character.getName() + " is no longer wounded!");
+        }
+
+        for (Status status : character.getActiveStatuses()) {
+            if (character.isFainted()) {
+                return;
             }
-            return;
+            tickStatus(character, status, log, context);
         }
+    }
 
-        int damage;
-
-        switch (status) {
-            case BURN:
-                damage = (int) Math.round(character.getStats().getMaxHp() * BURN_PERCENT_MAX_HP);
-                break;
-            case POISON:
-                damage = (int) Math.round(character.getStats().getMaxHp() * POISON_PERCENT_MAX_HP);
-                break;
-            case BLEED:
-                damage = (int) Math.round(character.getStatusMagnitude() * BLEED_PERCENT_ATTACK);
-                break;
-            case CURSED:
-                damage = (int) Math.round(character.getStats().getMagicAttack() * CURSED_PERCENT_MAGIC_ATTACK);
-                break;
-            default:
-                return; // STUN/PARALYSIS/AFTERMATH/NONE do nothing here
-        }
-
+    private void tickStatus(Character character, Status status, List<String> log, BattleContext context) {
+        int damage = tickDamage(character, status);
         if (damage > 0) {
             int actualDamage = applyDamageThroughShield(character, null, damage, context, log);
             if (actualDamage > 0) {
-                log.add(character.getName() + " takes " + actualDamage + " damage from " + status.toString().toLowerCase() + "!");
+                log.add(character.getName() + " takes " + actualDamage + " damage from "
+                        + status.toString().toLowerCase() + "!");
             }
             if (character.isFainted()) {
                 log.add(character.getName() + " has fainted!");
                 notifyFaint(character, null, null, context, log);
             }
         }
+        if (status.getDefaultDurationTurns() > 0 && character.decrementStatusDuration(status)) {
+            log.add(character.getName() + " " + expiredMessage(status));
+        }
+    }
 
-        if (status == Status.CURSED) {
-            character.decrementStatusDuration();
-            if (character.getStatus() == Status.NONE) {
-                log.add(character.getName() + " is no longer cursed!");
-            }
+    private int tickDamage(Character character, Status status) {
+        double effectiveness = character.getStatusEffectiveness(status);
+        switch (status) {
+            case BURN:
+                return (int) Math.round(character.getStats().getMaxHp() * BURN_PERCENT_MAX_HP * effectiveness);
+            case POISON:
+                return (int) Math.round(character.getStats().getMaxHp() * POISON_PERCENT_MAX_HP * effectiveness);
+            case BLEED:
+                return (int) Math.round(character.getStatusMagnitude(Status.BLEED) * BLEED_PERCENT_ATTACK * effectiveness);
+            case CURSED:
+                return (int) Math.round(character.getStats().getMagicAttack() * CURSED_PERCENT_MAGIC_ATTACK * effectiveness);
+            default:
+                return 0;
         }
-        if (status == Status.BURN) {
-            character.decrementStatusDuration();
-            if (character.getStatus() == Status.NONE) {
-                log.add(character.getName() + " is no longer burning!");
-            }
-        }
-        if (status == Status.POISON) {
-            character.decrementStatusDuration();
-            if (character.getStatus() == Status.NONE) {
-                log.add(character.getName() + " is no longer poisoned!");
-            }
-        }
-        if (status == Status.BLEED) {
-            character.decrementStatusDuration();
-            if (character.getStatus() == Status.NONE) {
-                log.add(character.getName() + " is no longer bleeding!");
-            }
+    }
+
+    private static String expiredMessage(Status status) {
+        switch (status) {
+            case BURN:
+                return "is no longer burning!";
+            case POISON:
+                return "is no longer poisoned!";
+            case BLEED:
+                return "is no longer bleeding!";
+            case CURSED:
+                return "is no longer cursed!";
+            case SLOW:
+                return "is no longer slowed!";
+            case PARALYSIS:
+                return "is no longer paralyzed!";
+            default:
+                return "is no longer " + status.toString().toLowerCase() + "!";
         }
     }
 
@@ -164,7 +164,7 @@ public class StatusEffectResolver {
      * 15% of the fainted character's max HP.
      */
     public void applyOnFaintEffects(Character fainted, Character killer, List<String> log) {
-        if (fainted.getStatus() != Status.AFTERMATH) {
+        if (!fainted.hasStatus(Status.AFTERMATH)) {
             return;
         }
         if (killer == null || killer == fainted || killer.isFainted()) {
@@ -187,13 +187,18 @@ public class StatusEffectResolver {
     }
 
     public void applyHeal(Character target, List<String> log) {
-        int amount = (int) Math.round(target.getStats().getMaxHp() * HEAL_PERCENT_MAX_HP);
+        applyHeal(target, 1.0, log);
+    }
+
+    public void applyHeal(Character target, double scaling, List<String> log) {
+        double factor = scaling <= 0 ? 1.0 : scaling;
+        int amount = (int) Math.round(target.getStats().getMaxHp() * HEAL_PERCENT_MAX_HP * factor);
         int healed = healUpToMax(target, amount);
         log.add(target.getName() + " recovers " + healed + " HP!");
         notifyHealed(target, healed, log);
     }
 
-    /** Grants a shield equal to the SHIELD move's power. Replaces any existing shield. */
+    /** Grants a shield equal to the SHIELD move's power. Replaces any existing shield (does not stack). */
     public void applyShield(Character target, int amount, List<String> log) {
         if (amount <= 0) {
             return;

@@ -239,9 +239,19 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     }
 
     @Override
+    public int modifyCritRate(Character self, Move move, int ratePercent) {
+        if (phase != Phase.ANGERED) {
+            return ratePercent;
+        }
+        if (move != null && !SWING_NAME.equals(move.getName())) {
+            return ratePercent;
+        }
+        return ratePercent + (int) Math.round(ANGERED_CRIT_CHANCE * 100);
+    }
+
+    @Override
     public boolean rollBonusCrit(Character self, Move move) {
-        return phase == Phase.ANGERED && SWING_NAME.equals(move.getName())
-                && random.nextDouble() < ANGERED_CRIT_CHANCE;
+        return false;
     }
 
     @Override

@@ -14,7 +14,7 @@ public class ChefSlowCookPassive implements Passive {
     @Override
     public double modifyOutgoingDamage(Character self, Character target, Move move,
                                         double damage, boolean isCrit, List<String> log) {
-        if (!target.isSiphoned() && target.getStatus() == Status.NONE) {
+        if (!target.isSiphoned() && !target.hasAnyStatus()) {
             return damage;
         }
         log.add(self.getName() + "'s slow cook extra-tenderizes " + target.getName() + "!");

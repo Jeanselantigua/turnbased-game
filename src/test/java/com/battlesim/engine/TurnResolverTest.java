@@ -1,6 +1,7 @@
 package com.battlesim.engine;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import com.battlesim.content.passives.DualSwordsmanStatusRerollPassive;
 import com.battlesim.content.passives.ExtraActionsPassive;
@@ -371,5 +372,49 @@ public class TurnResolverTest {
         alwaysHits().resolveAction(attacker, new ActionChoice(slash, List.of(defender)));
 
         assertTrue(defender.hasPassive(ExtraActionsPassive.class));
+    }
+
+    @Test
+    public void aNewStatusDoesNotOverrideExistingStatuses() {
+        Character caster = character("Caster", 200, 50, 50);
+        Character enemy = character("Enemy", 400, 10, 10);
+        Move poison = new Move("Toxin", Type.SHADOW, 10, 100, 0, false, Status.POISON, 100);
+        Move burn = new Move("Ember", Type.FIRE, 10, 100, 0, false, Status.BURN, 100);
+
+        alwaysHits().resolveAction(caster, new ActionChoice(poison, List.of(enemy)));
+        alwaysHits().resolveAction(caster, new ActionChoice(burn, List.of(enemy)));
+
+        assertTrue(enemy.hasStatus(Status.POISON));
+        assertTrue(enemy.hasStatus(Status.BURN));
+    }
+
+    @Test
+    public void reapplyingBleedIntensifiesInsteadOfExtendingDuration() {
+        Character attacker = character("Knight", 200, 80, 0);
+        Character enemy = character("Enemy", 400, 10, 10);
+        Move rend = new Move("Rend", Type.PHYSICAL, 20, 100, 0, false, Status.BLEED, 100);
+
+        alwaysHits().resolveAction(attacker, new ActionChoice(rend, List.of(enemy)));
+        alwaysHits().resolveAction(attacker, new ActionChoice(rend, List.of(enemy)));
+
+        assertTrue(enemy.hasStatus(Status.BLEED));
+        assertEquals(3, enemy.getStatusTurnsRemaining(Status.BLEED));
+        assertEquals(80, enemy.getStatusMagnitude(Status.BLEED));
+        assertEquals(1.15, enemy.getStatusEffectiveness(Status.BLEED), 0.0001);
+    }
+
+    @Test
+    public void stunSkipClearsOnlyStun() {
+        Character stunned = character("Victim", 200, 10, 10);
+        stunned.setStatus(Status.BURN);
+        stunned.setStatus(Status.STUN);
+        Character dummy = character("Dummy", 200, 10, 10);
+        Move slash = new Move("Slash", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
+
+        List<String> log = alwaysHits().resolveAction(stunned, new ActionChoice(slash, List.of(dummy)));
+
+        assertTrue(log.stream().anyMatch(line -> line.contains("stunned")));
+        assertTrue(stunned.hasStatus(Status.BURN));
+        assertFalse(stunned.hasStatus(Status.STUN));
     }
 }

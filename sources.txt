@@ -5,7 +5,8 @@ C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passi
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\CavemanFrenzyPassive.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\ChefChickenPassive.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\ChefSlowCookPassive.java
-C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\KnightBleedPassive.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\ChampionsGiftPassive.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\HeavenPiercingBladePassive.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\KnightShieldPassive.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\MonkHolySplitPassive.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\content\passives\MonkParryPassive.java
@@ -39,4 +40,16 @@ C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Stats.j
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Status.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Team.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Type.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Gear.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\GearAffix.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\GearLevelUp.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\GearRarity.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\GearSet.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\GearSlot.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Inventory.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\model\Loadout.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\item\DropTable.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\item\GearFactory.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\dungeon\Camp.java
+C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\dungeon\ConsoleCamp.java
 C:\Users\JOSE\turnbased\turnbased-game\src\main\java\com\battlesim\util\RandomProvider.java

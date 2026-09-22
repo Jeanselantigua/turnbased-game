@@ -1,6 +1,8 @@
 package com.battlesim.engine;
 
+import com.battlesim.content.passives.HeavenPiercingBladePassive;
 import com.battlesim.content.passives.MonkPerfectEnlightenmentPassive;
+import com.battlesim.content.passives.RogueCritStealthPassive;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Status;
@@ -39,6 +41,16 @@ public class SimpleAiMoveSelector implements MoveSelector {
         Move swing = findMove(moves, SWING_MOVE);
         if (recover != null && (swing == null || shouldRecoverFromAnger(enemyTeam))) {
             return new ActionChoice(recover, List.of(actor));
+        }
+
+        Move hailMary = findMove(moves, HeavenPiercingBladePassive.MOVE_NAME);
+        if (hailMary != null) {
+            return new ActionChoice(hailMary, List.of(lowestHp(enemyTeam)));
+        }
+
+        Move ambush = findMove(moves, RogueCritStealthPassive.AMBUSH_NAME);
+        if (ambush != null) {
+            return new ActionChoice(ambush, List.of(lowestHp(enemyTeam)));
         }
 
         Move enlightenment = findMove(moves, ENLIGHTENMENT_MOVE);

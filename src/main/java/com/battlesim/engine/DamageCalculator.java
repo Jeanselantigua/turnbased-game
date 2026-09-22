@@ -21,7 +21,8 @@ public class DamageCalculator {
     }
 
     public int calculateDamage(Character attacker, Character defender, Move move) {
-        if (move.getPower() == 0) {
+        int power = attacker.effectivePower(move);
+        if (power == 0) {
             return 0; // pure status/utility moves deal no damage
         }
 
@@ -32,7 +33,8 @@ public class DamageCalculator {
                 ? defender.getStats().getMagicDefense()
                 : defender.getStats().getDefense();
 
-        double base = ((double) move.getPower() * offenseStat) / Math.max(1, defenseStat);
+        double base = ((double) power * offenseStat * attacker.moveScaling(move))
+                / Math.max(1, defenseStat);
 
         double stab = (move.getType() == attacker.getAffinity()) ? 1.5 : 1.0;
         double typeMultiplier = typeChart.getMultiplier(move.getType(), defender.getAffinity());

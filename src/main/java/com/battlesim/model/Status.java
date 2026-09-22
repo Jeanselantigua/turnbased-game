@@ -9,6 +9,7 @@ public enum Status {
     BURN,       // e.g. damage over time
     POISON,     // e.g. damage over time
     BLEED,      // DoT: 40% of the inflictor's attack, snapshotted as status magnitude
+    WOUNDED,    // Rogue stacks; detonated by Assassinate, not a ticking DoT
     CURSED,     // e.g. 15% Current MagicAttack for 3 turns
     AFTERMATH,  // e.g. 15% max health dmg on death
     PARALYSIS,  // e.g. chance to skip a turn
@@ -36,6 +37,8 @@ public enum Status {
                 return 3;
             case BLEED:
                 return 3;
+            case WOUNDED:
+                return 2;
             case PARALYSIS:
                 return 3;
             case SLOW:
@@ -63,6 +66,7 @@ public enum Status {
             case BURN:
             case POISON:
             case BLEED:
+            case WOUNDED:
             case CURSED:
             case PARALYSIS:
             case STUN:
@@ -72,5 +76,16 @@ public enum Status {
             default:
                 return false;
         }
+    }
+
+    /** Reapply raises power by 15% and does not extend duration. */
+    public boolean stacksOnReapply() {
+        return this == BURN || this == POISON || this == BLEED || this == SLOW;
+    }
+
+    /** Reapply restores a fresh copy (original duration / magnitude). */
+    public boolean refreshesOnReapply() {
+        return this == STUN || this == PARALYSIS || this == CURSED
+                || this == SHIELD || this == SELF_SHIELD || this == AFTERMATH;
     }
 }

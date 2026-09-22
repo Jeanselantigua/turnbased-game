@@ -1,28 +1,74 @@
 package com.battlesim.content.passives;
 
+import com.battlesim.model.BattleContext;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
+import com.battlesim.model.Status;
+import com.battlesim.model.Type;
+import com.battlesim.util.RandomProvider;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class RogueCritStealthPassive implements Passive {
 
-    private static final double CRIT_CHANCE = 0.15;
-    private static final double CRIT_MULTIPLIER = 2.0;
+    public static final String AMBUSH_NAME = "Ambush";
+    public static final int AMBUSH_POWER = 40;
+    public static final int AMBUSH_ACCURACY = 95;
+    public static final double CRIT_CHANCE = 0.15;
+    public static final double AMBUSH_CRIT_CHANCE = 0.45;
+    public static final int CRIT_DAMAGE_PERCENT = 100;
     private static final double STEALTH_MULTIPLIER = 1.5;
     private static final int STEALTH_EVASION = 35;
-    private final Random random = new Random();
+
+    private final RandomProvider random;
     private boolean stealthed = false;
+
+    public RogueCritStealthPassive() {
+        this(new RandomProvider());
+    }
+
+    public RogueCritStealthPassive(RandomProvider random) {
+        this.random = random;
+    }
+
+    public static Move createAmbush() {
+        return new Move(AMBUSH_NAME, Type.PHYSICAL, AMBUSH_POWER, AMBUSH_ACCURACY, 1, false,
+                Status.NONE, 0);
+    }
 
     @Override
     public boolean isStealthed(Character self) {
         return stealthed;
     }
 
+    void setStealthed(boolean stealthed) {
+        this.stealthed = stealthed;
+    }
+
     @Override
-    public boolean rollBonusCrit(Character self, Move move) {
-        return random.nextDouble() < CRIT_CHANCE;
+    public int modifyCritRate(Character self, Move move, int ratePercent) {
+        int bonus = (int) Math.round((isAmbush(move) ? AMBUSH_CRIT_CHANCE : CRIT_CHANCE) * 100);
+        return ratePercent + bonus;
+    }
+
+    @Override
+    public int modifyCritDamage(Character self, Move move, int damagePercent) {
+        return damagePercent + CRIT_DAMAGE_PERCENT;
+    }
+
+    @Override
+    public List<Move> filterOwnMoves(Character self, List<Move> moves, BattleContext context) {
+        if (stealthed) {
+            return moves;
+        }
+        List<Move> filtered = new ArrayList<>();
+        for (Move move : moves) {
+            if (!isAmbush(move)) {
+                filtered.add(move);
+            }
+        }
+        return filtered;
     }
 
     @Override
@@ -36,16 +82,11 @@ public class RogueCritStealthPassive implements Passive {
     @Override
     public double modifyOutgoingDamage(Character self, Character target, Move move,
                                         double damage, boolean isCrit, List<String> log) {
-        double multiplier = 1.0;
-        if (isCrit) {
-            log.add(self.getName() + " lands a critical hit!");
-            multiplier *= CRIT_MULTIPLIER;
-        }
         if (stealthed) {
             log.add(self.getName() + " strikes from the shadows!");
-            multiplier *= STEALTH_MULTIPLIER;
+            return damage * STEALTH_MULTIPLIER;
         }
-        return damage * multiplier;
+        return damage;
     }
 
     @Override
@@ -66,5 +107,9 @@ public class RogueCritStealthPassive implements Passive {
             stealthed = false;
             log.add(self.getName() + " is forced out of the shadows!");
         }
+    }
+
+    private static boolean isAmbush(Move move) {
+        return move != null && AMBUSH_NAME.equals(move.getName());
     }
 }

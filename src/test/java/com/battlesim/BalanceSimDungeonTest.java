@@ -40,6 +40,23 @@ public class BalanceSimDungeonTest {
         assertEquals(1, row.min);
         assertEquals(1, row.max);
         assertEquals(100.0, row.clearPct, 0.0001);
-        assertTrue(row.name.contains("Knight"));
+        assertTrue(row.name.contains("Mechanized Champion"));
+    }
+
+    @Test
+    public void teamMatchesAreThreeOnThree() {
+        assertEquals(3, BalanceSim.TEAM_SIZE);
+    }
+
+    @Test
+    public void mostLopsidedKeepsTheBiggestSpreads() {
+        BalanceSim.SplitRow close = new BalanceSim.SplitRow("A", "B", 26, 24, 0, 0, 50);
+        BalanceSim.SplitRow blowout = new BalanceSim.SplitRow("C", "D", 50, 0, 0, 0, 50);
+        BalanceSim.SplitRow mild = new BalanceSim.SplitRow("E", "F", 30, 20, 0, 0, 50);
+        List<BalanceSim.SplitRow> shown = BalanceSim.mostLopsided(
+                List.of(close, blowout, mild), 2);
+        assertEquals(2, shown.size());
+        assertEquals("C", shown.get(0).teamA);
+        assertEquals("E", shown.get(1).teamA);
     }
 }

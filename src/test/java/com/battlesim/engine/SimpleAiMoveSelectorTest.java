@@ -69,7 +69,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void doesNotOpen1v1WithPerfectEnlightenment() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         Character foe = dummyFoe();
         SimpleAiMoveSelector ai = new SimpleAiMoveSelector(new RandomProvider(1L));
 
@@ -81,7 +81,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void swingsWhenAngeredAgainstHealthyFoe() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         Character foe = dummyFoe();
         angerMonk(monk, foe);
         SimpleAiMoveSelector ai = new SimpleAiMoveSelector(new RandomProvider(1L));
@@ -92,7 +92,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void recoversWhenAngeredAgainstLowFoe() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         Character foe = dummyFoe();
         angerMonk(monk, foe);
         foe.getStats().applyDamage(160);
@@ -104,7 +104,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void channelsIn1v1AfterTwoStaffHits() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         Character foe = dummyFoe();
         BattleContext ctx = oneVOne(monk, foe);
         RandomProvider rng = alwaysHitsRng();
@@ -119,7 +119,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void sionRoarsWhenShieldIsDown() {
-        Character sion = PlayableCharacters.sion().createInstance();
+        Character sion = PlayableCharacters.sion().createFullyLearnedInstance();
         Character foe = dummyFoe();
         SimpleAiMoveSelector ai = new SimpleAiMoveSelector(new RandomProvider(1L));
 
@@ -130,7 +130,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void sionAttacksWhenShieldIsUp() {
-        Character sion = PlayableCharacters.sion().createInstance();
+        Character sion = PlayableCharacters.sion().createFullyLearnedInstance();
         Character foe = dummyFoe();
         sion.getStats().grantShield(100);
         SimpleAiMoveSelector ai = new SimpleAiMoveSelector(new RandomProvider(1L));
@@ -157,7 +157,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void selfShieldDoesNotTargetAnUnshieldedAlly() {
-        Character sion = PlayableCharacters.sion().createInstance();
+        Character sion = PlayableCharacters.sion().createFullyLearnedInstance();
         Character ally = dummyFoe();
         ally.getStats().applyDamage(50);
         Character foe = dummyFoe();
@@ -170,7 +170,7 @@ public class SimpleAiMoveSelectorTest {
 
     @Test
     public void channelsInTeamsWhenAlliesAreHealthy() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         Character ally = dummyFoe();
         Character foe = dummyFoe();
         SimpleAiMoveSelector ai = new SimpleAiMoveSelector(new RandomProvider(1L));

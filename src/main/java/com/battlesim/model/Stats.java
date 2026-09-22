@@ -10,6 +10,8 @@ public class Stats {
     private int magicAttack;
     private int magicDefense;
     private int speed;
+    private int critRate;
+    private int critDamage;
 
     public Stats(int maxHp, int attack, int defense, int magicAttack, int magicDefense, int speed) {
         this.maxHp = maxHp;
@@ -57,6 +59,20 @@ public class Stats {
     }
 
     /**
+     * Raises max HP. Living characters also gain the same amount of current HP
+     * (a small heal). Fainted characters stay at 0 — level-ups do not revive.
+     */
+    public void increaseMaxHp(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        this.maxHp += amount;
+        if (currentHp > 0) {
+            currentHp = Math.min(maxHp, currentHp + amount);
+        }
+    }
+
+    /**
      * Raises max HP and keeps current HP at the same percent of max
      * (full stays full, half stays half, 0 stays fainted).
      */
@@ -75,6 +91,83 @@ public class Stats {
     public int getMagicAttack() { return magicAttack; }
     public int getMagicDefense() { return magicDefense; }
     public int getSpeed() { return speed; }
+    public int getCritRate() { return critRate; }
+    public int getCritDamage() { return critDamage; }
+
+    public int get(StatKind kind) {
+        if (kind == null) {
+            return 0;
+        }
+        switch (kind) {
+            case HP:
+                return maxHp;
+            case ATTACK:
+                return attack;
+            case DEFENSE:
+                return defense;
+            case MAGIC_ATTACK:
+                return magicAttack;
+            case MAGIC_DEFENSE:
+                return magicDefense;
+            case SPEED:
+                return speed;
+            case CRIT_RATE:
+                return critRate;
+            case CRIT_DAMAGE:
+                return critDamage;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Adds (or subtracts) a permanent stat. Unequipping gear uses a negative
+     * amount. Speed stays at least 1; max HP stays at least 1 and current HP
+     * is clamped down if it would exceed the new max.
+     */
+    public void add(StatKind kind, int amount) {
+        if (kind == null || amount == 0) {
+            return;
+        }
+        switch (kind) {
+            case HP:
+                if (amount > 0) {
+                    increaseMaxHp(amount);
+                } else {
+                    maxHp = Math.max(1, maxHp + amount);
+                    currentHp = Math.min(currentHp, maxHp);
+                }
+                break;
+            case ATTACK:
+                attack = Math.max(0, attack + amount);
+                break;
+            case DEFENSE:
+                defense = Math.max(0, defense + amount);
+                break;
+            case MAGIC_ATTACK:
+                magicAttack = Math.max(0, magicAttack + amount);
+                break;
+            case MAGIC_DEFENSE:
+                magicDefense = Math.max(0, magicDefense + amount);
+                break;
+            case SPEED:
+                speed = Math.max(1, speed + amount);
+                break;
+            case CRIT_RATE:
+                critRate = Math.max(0, critRate + amount);
+                break;
+            case CRIT_DAMAGE:
+                critDamage = Math.max(0, critDamage + amount);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /** HP + ATK + DEF + MATK + MDEF + SPD. */
+    public int baseStatTotal() {
+        return maxHp + attack + defense + magicAttack + magicDefense + speed;
+    }
 
     // Permanent stat growth, used by passives (e.g. Caveman's Frenzy) and,
     // later, leveling. Speed is clamped to at least 1 so turn delay stays defined.

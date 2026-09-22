@@ -21,38 +21,43 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Batch-fights the roster (1v1 and 4v4) and climbs {@link Dungeon#standard()}
- * as every solo, duo, and trio. Run as a Java Application from Eclipse.
+ * Batch-fights the roster (1v1 and 3v3) on Phase 2 stats with current kits,
+ * and climbs {@link Dungeon#standard()} as every solo, duo, and trio.
+ * Run as a Java Application from Eclipse.
  */
 public class BalanceSim {
 
     static final int FIGHTS_PER_1V1 = 500;
     static final int FIGHTS_PER_SPLIT = 50;
-    static final int MIXED_4V4_FIGHTS = 500;
+    static final int MIXED_TEAM_FIGHTS = 500;
+    static final int UNIQUE_SPLITS_SHOWN = 10;
     static final int MAX_ACTIONS = 200;
-    static final int TEAM_SIZE = 4;
+    static final int TEAM_SIZE = 3;
     static final int DUNGEON_RUNS_PER_COMP = 10;
 
     public static void main(String[] args) {
         List<CharacterTemplate> roster = PlayableCharacters.all();
+        List<CharacterTemplate> arena = PlayableCharacters.arenaRoster();
         RandomProvider random = new RandomProvider();
 
         System.out.println("=== Battle Balance Simulator ===");
         System.out.println("Roster: " + joinNames(roster));
         System.out.println("AI: SimpleAiMoveSelector  |  max actions: " + MAX_ACTIONS);
+        System.out.println("1v1 / 3v3: Phase 2 stats, current 4-move kits, ults start on cooldown");
+        System.out.println("Dungeon climb: level-1 stats, moves unlock while leveling");
         System.out.println();
 
         runDungeonProgress(roster, random);
-        run1v1(roster, random);
-        runUniqueSplits(roster, random);
-        runMixedComps(roster, random);
+        runUniqueSplits(arena, random);
+        run1v1(arena, random);
+        runMixedComps(arena, random);
     }
 
     static BattleResult fight(List<CharacterTemplate> teamATemplates,
                               List<CharacterTemplate> teamBTemplates,
                               RandomProvider random) {
-        List<Character> teamAMembers = spawn(teamATemplates);
-        List<Character> teamBMembers = spawn(teamBTemplates);
+        List<Character> teamAMembers = spawnFullKit(teamATemplates);
+        List<Character> teamBMembers = spawnFullKit(teamBTemplates);
         Team teamA = new Team(teamAMembers);
         Team teamB = new Team(teamBMembers);
         MoveSelector ai = new SimpleAiMoveSelector(random);
@@ -63,6 +68,16 @@ public class BalanceSim {
         List<Character> members = new ArrayList<>();
         for (CharacterTemplate template : templates) {
             members.add(template.createInstance());
+        }
+        return members;
+    }
+
+    private static List<Character> spawnFullKit(List<CharacterTemplate> templates) {
+        List<Character> members = new ArrayList<>();
+        for (CharacterTemplate template : templates) {
+            Character spawned = template.createFullyLearnedInstance();
+            spawned.putUltOnCooldown();
+            members.add(spawned);
         }
         return members;
     }
@@ -153,7 +168,7 @@ public class BalanceSim {
 
     private static void runUniqueSplits(List<CharacterTemplate> roster, RandomProvider random) {
         int poolSize = TEAM_SIZE * 2;
-        System.out.println("Unique 4v4 splits (each character used once), "
+        System.out.println("Unique 3v3 splits (each character used once), "
                 + FIGHTS_PER_SPLIT + " fights each");
 
         if (roster.size() < poolSize) {
@@ -162,28 +177,38 @@ public class BalanceSim {
             return;
         }
 
+        Map<String, CharacterAgg> stats = new LinkedHashMap<>();
+        for (CharacterTemplate template : roster) {
+            stats.put(template.getName(), new CharacterAgg(template.getName()));
+        }
+        List<SplitRow> splits = new ArrayList<>();
         int totalDraws = 0;
         int totalTimeouts = 0;
-        int printed = 0;
         for (int[] pool : combinations(roster.size(), poolSize)) {
             List<CharacterTemplate> subRoster = new ArrayList<>();
             for (int idx : pool) {
                 subRoster.add(roster.get(idx));
             }
-            int[] totals = runUniqueSplitsForPool(subRoster, random);
-            printed += totals[0];
-            totalDraws += totals[1];
-            totalTimeouts += totals[2];
+            int[] totals = runUniqueSplitsForPool(subRoster, random, stats, splits);
+            totalDraws += totals[0];
+            totalTimeouts += totals[1];
         }
 
-        System.out.println("Splits reported: " + printed
-                + "   Draws: " + totalDraws + "   Timeouts: " + totalTimeouts);
+        printAggTable(stats);
+        System.out.println("Most lopsided unique splits ("
+                + Math.min(UNIQUE_SPLITS_SHOWN, splits.size()) + " of " + splits.size() + ")");
+        for (SplitRow row : mostLopsided(splits, UNIQUE_SPLITS_SHOWN)) {
+            System.out.printf("  %s  vs  %s%n", row.teamA, row.teamB);
+            System.out.printf("      A: %5.1f%%   B: %5.1f%%   draw: %5.1f%%   timeout: %5.1f%%%n",
+                    row.aPct(), row.bPct(), row.drawPct(), row.timeoutPct());
+        }
+        System.out.println("Draws: " + totalDraws + "   Timeouts: " + totalTimeouts);
         System.out.println();
     }
 
-    /** Returns [printed, draws, timeouts] for one 6-character pool. */
-    private static int[] runUniqueSplitsForPool(List<CharacterTemplate> roster, RandomProvider random) {
-        int printed = 0;
+    /** Returns [draws, timeouts] for one 6-character pool. */
+    private static int[] runUniqueSplitsForPool(List<CharacterTemplate> roster, RandomProvider random,
+                                                Map<String, CharacterAgg> stats, List<SplitRow> splits) {
         int totalDraws = 0;
         int totalTimeouts = 0;
         List<int[]> combos = combinations(roster.size(), TEAM_SIZE);
@@ -232,23 +257,17 @@ public class BalanceSim {
                         timeouts++;
                         break;
                 }
+                recordMixed(stats, result);
             }
             totalDraws += draws;
             totalTimeouts += timeouts;
-            printed++;
-
-            System.out.printf("  %s  vs  %s%n", keyA, keyB);
-            System.out.printf("      A: %5.1f%%   B: %5.1f%%   draw: %5.1f%%   timeout: %5.1f%%%n",
-                    pct(aWins, FIGHTS_PER_SPLIT),
-                    pct(bWins, FIGHTS_PER_SPLIT),
-                    pct(draws, FIGHTS_PER_SPLIT),
-                    pct(timeouts, FIGHTS_PER_SPLIT));
+            splits.add(new SplitRow(keyA, keyB, aWins, bWins, draws, timeouts, FIGHTS_PER_SPLIT));
         }
-        return new int[] {printed, totalDraws, totalTimeouts};
+        return new int[] {totalDraws, totalTimeouts};
     }
 
     private static void runMixedComps(List<CharacterTemplate> roster, RandomProvider random) {
-        System.out.println("Mixed 4v4 (templates can repeat), " + MIXED_4V4_FIGHTS + " fights");
+        System.out.println("Mixed 3v3 (templates can repeat), " + MIXED_TEAM_FIGHTS + " fights");
 
         Map<String, CharacterAgg> stats = new LinkedHashMap<>();
         for (CharacterTemplate template : roster) {
@@ -257,7 +276,7 @@ public class BalanceSim {
 
         int draws = 0;
         int timeouts = 0;
-        for (int i = 0; i < MIXED_4V4_FIGHTS; i++) {
+        for (int i = 0; i < MIXED_TEAM_FIGHTS; i++) {
             List<CharacterTemplate> teamA = randomTeam(roster, random);
             List<CharacterTemplate> teamB = randomTeam(roster, random);
             BattleResult result = fight(teamA, teamB, random);
@@ -274,17 +293,20 @@ public class BalanceSim {
             recordMixed(stats, result);
         }
 
+        printAggTable(stats);
+        System.out.println("Draws: " + draws + "   Timeouts: " + timeouts);
+        System.out.println();
+    }
+
+    private static void printAggTable(Map<String, CharacterAgg> stats) {
         List<CharacterAgg> rows = new ArrayList<>(stats.values());
         rows.sort(Comparator.comparingDouble((CharacterAgg a) -> a.winRate()).reversed());
-
         System.out.printf("  %-14s %8s %10s %12s %10s%n",
                 "Character", "Win%", "Survive%", "HP% if win", "Present");
         for (CharacterAgg row : rows) {
             System.out.printf("  %-14s %7.1f%% %9.1f%% %11.1f%% %10d%n",
                     row.name, row.winRate(), row.surviveRate(), row.avgHpWhenTeamWon(), row.appearances);
         }
-        System.out.println("Draws: " + draws + "   Timeouts: " + timeouts);
-        System.out.println();
     }
 
     private static void recordMixed(Map<String, CharacterAgg> stats, BattleResult result) {
@@ -353,7 +375,8 @@ public class BalanceSim {
         Supplier<Dungeon> dungeons = () -> Dungeon.standard(random);
 
         System.out.println("Dungeon climb (" + Dungeon.DEFAULT_FLOORS + " floors, boss every "
-                + Dungeon.BOSS_EVERY + ", +" + Dungeon.SCALE_PER_BLOCK
+                + Dungeon.BOSS_EVERY + ", start x" + Dungeon.STARTING_SCALE
+                + " then +" + Dungeon.SCALE_PER_BLOCK
                 + " stats every " + Dungeon.BOSS_EVERY + " floors, "
                 + "party scale solo " + Dungeon.SOLO_SCALE
                 + " / duo " + Dungeon.DUO_SCALE
@@ -368,7 +391,7 @@ public class BalanceSim {
     static List<CharacterTemplate> climbable(List<CharacterTemplate> roster) {
         List<CharacterTemplate> climbable = new ArrayList<>();
         for (CharacterTemplate template : roster) {
-            if (!template.createInstance().getMoves().isEmpty()) {
+            if (!template.getKit().allMoves().isEmpty()) {
                 climbable.add(template);
             }
         }
@@ -424,6 +447,15 @@ public class BalanceSim {
                 pct(clears, runs));
     }
 
+    static List<SplitRow> mostLopsided(List<SplitRow> splits, int limit) {
+        List<SplitRow> ranked = new ArrayList<>(splits);
+        ranked.sort(Comparator.comparingDouble((SplitRow s) -> s.spread()).reversed());
+        if (ranked.size() <= limit) {
+            return ranked;
+        }
+        return new ArrayList<>(ranked.subList(0, limit));
+    }
+
     static double median(int[] sorted) {
         int n = sorted.length;
         if (n % 2 == 1) {
@@ -454,6 +486,46 @@ public class BalanceSim {
             this.min = min;
             this.max = max;
             this.clearPct = clearPct;
+        }
+    }
+
+    static final class SplitRow {
+        final String teamA;
+        final String teamB;
+        final int aWins;
+        final int bWins;
+        final int draws;
+        final int timeouts;
+        final int fights;
+
+        SplitRow(String teamA, String teamB, int aWins, int bWins, int draws, int timeouts, int fights) {
+            this.teamA = teamA;
+            this.teamB = teamB;
+            this.aWins = aWins;
+            this.bWins = bWins;
+            this.draws = draws;
+            this.timeouts = timeouts;
+            this.fights = fights;
+        }
+
+        double aPct() {
+            return pct(aWins, fights);
+        }
+
+        double bPct() {
+            return pct(bWins, fights);
+        }
+
+        double drawPct() {
+            return pct(draws, fights);
+        }
+
+        double timeoutPct() {
+            return pct(timeouts, fights);
+        }
+
+        double spread() {
+            return Math.abs(aPct() - bPct());
         }
     }
 

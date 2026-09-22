@@ -6,13 +6,16 @@ import static org.junit.Assert.assertTrue;
 import com.battlesim.content.Enemies;
 import com.battlesim.content.PlayableCharacters;
 import com.battlesim.engine.SimpleAiMoveSelector;
+import com.battlesim.item.DropTable;
 import com.battlesim.model.Character;
 import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.EnemyRank;
 import com.battlesim.model.EnemyTemplate;
+import com.battlesim.model.Inventory;
 import com.battlesim.model.Move;
 import com.battlesim.model.Status;
 import com.battlesim.model.Type;
+import com.battlesim.progress.Growth;
 import com.battlesim.util.RandomProvider;
 import java.util.List;
 import org.junit.Test;
@@ -22,13 +25,14 @@ public class DungeonTest {
     @Test
     public void scaleStaysFlatUntilTheNextBlockOfFifteen() {
         Dungeon dungeon = Dungeon.standard();
-        assertEquals(1.0, dungeon.scaleForWave(1), 0.0001);
-        assertEquals(1.0, dungeon.scaleForWave(15), 0.0001);
-        assertEquals(1.15, dungeon.scaleForWave(16), 0.0001);
-        assertEquals(1.15, dungeon.scaleForWave(30), 0.0001);
-        assertEquals(1.30, dungeon.scaleForWave(31), 0.0001);
-        assertEquals(1.30, dungeon.scaleForWave(45), 0.0001);
-        assertEquals(1.45, dungeon.scaleForWave(46), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE, dungeon.scaleForWave(1), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE, dungeon.scaleForWave(15), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(16), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(30), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + 2 * Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(31), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + 2 * Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(45), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + 3 * Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(46), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE + 6 * Dungeon.SCALE_PER_BLOCK, dungeon.scaleForWave(100), 0.0001);
     }
 
     @Test
@@ -51,8 +55,10 @@ public class DungeonTest {
         Character base = Enemies.goblin().createInstance(1.0);
         Dungeon dungeon = Dungeon.standard();
         Character scaled = Enemies.goblin().createInstance(dungeon.scaleForWave(16));
-        assertEquals(80, base.getStats().getMaxHp());
-        assertEquals(92, scaled.getStats().getMaxHp());
+        int goblinHp = base.getStats().getMaxHp();
+        int expectedHp = (int) Math.round(goblinHp * dungeon.scaleForWave(16));
+        assertEquals(60, goblinHp);
+        assertEquals(expectedHp, scaled.getStats().getMaxHp());
         assertEquals(scaled.getStats().getMaxHp(), scaled.getStats().getCurrentHp());
     }
 
@@ -62,11 +68,12 @@ public class DungeonTest {
         assertEquals(0.75, Dungeon.partySizeScale(1), 0.0001);
         assertEquals(0.90, Dungeon.partySizeScale(2), 0.0001);
         assertEquals(1.00, Dungeon.partySizeScale(3), 0.0001);
-        assertEquals(1.00, dungeon.scaleForWave(1, 3), 0.0001);
-        assertEquals(0.75, dungeon.scaleForWave(1, 1), 0.0001);
-        assertEquals(1.15 * 0.75, dungeon.scaleForWave(16, 1), 0.0001);
-        assertEquals(1.15 * 0.90, dungeon.scaleForWave(16, 2), 0.0001);
-        assertEquals(1.15, dungeon.scaleForWave(16, 3), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE, dungeon.scaleForWave(1, 3), 0.0001);
+        assertEquals(Dungeon.STARTING_SCALE * 0.75, dungeon.scaleForWave(1, 1), 0.0001);
+        double blockTwo = Dungeon.STARTING_SCALE + Dungeon.SCALE_PER_BLOCK;
+        assertEquals(blockTwo * 0.75, dungeon.scaleForWave(16, 1), 0.0001);
+        assertEquals(blockTwo * 0.90, dungeon.scaleForWave(16, 2), 0.0001);
+        assertEquals(blockTwo, dungeon.scaleForWave(16, 3), 0.0001);
     }
 
     @Test
@@ -100,6 +107,57 @@ public class DungeonTest {
 
         assertTrue(result.clearedAll());
         assertEquals(2, result.getWavesCleared());
+    }
+
+    @Test
+    public void soloDifficultyCutsWaveXp() {
+        Dungeon dungeon = new Dungeon(List.of(new Wave(List.of(Enemies.goblin()))), 0.15);
+        Character knight = PlayableCharacters.knight().createInstance();
+        RandomProvider random = new RandomProvider(1L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        DungeonResult result = DungeonRun.run(
+                List.of(knight), dungeon, ai, random, false, false, character -> { });
+
+        assertTrue(result.clearedAll());
+        assertEquals(1, knight.getLevel());
+        assertEquals(75, knight.getXp());
+    }
+
+    @Test
+    public void trioGetsFullXpAndLevelsFromANormal() {
+        Dungeon dungeon = new Dungeon(List.of(new Wave(List.of(Enemies.iceSlime()))), 0.15);
+        Character knight = PlayableCharacters.knight().createInstance();
+        Character rogue = PlayableCharacters.rogue().createInstance();
+        Character randy = PlayableCharacters.caveman().createInstance();
+        int startHp = knight.getStats().getMaxHp();
+        RandomProvider random = new RandomProvider(3L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        DungeonResult result = DungeonRun.run(
+                List.of(knight, rogue, randy), dungeon, ai, random, true, false, character -> { });
+
+        assertTrue(result.clearedAll());
+        assertEquals(2, knight.getLevel());
+        assertEquals(0, knight.getXp());
+        assertEquals(startHp + Growth.AUTO_HP_PER_LEVEL, knight.getStats().getMaxHp());
+        assertTrue(result.getLog().stream().anyMatch(line -> line.contains("gained 100 XP")));
+    }
+
+    @Test
+    public void clearedWavesGrantGoldIntoTheBag() {
+        Dungeon dungeon = new Dungeon(List.of(new Wave(List.of(Enemies.goblin()))), 0.15);
+        Character knight = PlayableCharacters.knight().createInstance();
+        Inventory bag = new Inventory();
+        RandomProvider random = new RandomProvider(1L);
+        SimpleAiMoveSelector ai = new SimpleAiMoveSelector(random);
+
+        DungeonResult result = DungeonRun.run(
+                List.of(knight), dungeon, ai, random, false, false, character -> { },
+                bag, Camp.NONE);
+
+        assertTrue(result.clearedAll());
+        assertEquals(DropTable.goldFor(EnemyRank.NORMAL, Dungeon.partySizeScale(1)), bag.getGold());
     }
 
     private static EnemyTemplate unbeatableWall() {

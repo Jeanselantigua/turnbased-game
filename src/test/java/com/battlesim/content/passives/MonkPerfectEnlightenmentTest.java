@@ -26,7 +26,7 @@ import org.junit.Test;
 public class MonkPerfectEnlightenmentTest {
 
     private static Character monkWith(RandomProvider random) {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         monk.removePassivesOfType(MonkPerfectEnlightenmentPassive.class);
         monk.addPassive(new MonkPerfectEnlightenmentPassive(random));
         return monk;
@@ -131,7 +131,7 @@ public class MonkPerfectEnlightenmentTest {
 
     @Test
     public void monkKitIncludesMeditate() {
-        Character monk = PlayableCharacters.monk().createInstance();
+        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
         assertTrue(monk.getMoves().stream().anyMatch(m ->
                 MonkPerfectEnlightenmentPassive.MOVE_NAME.equals(m.getName())));
         assertTrue(monk.hasPassive(MonkPerfectEnlightenmentPassive.class));

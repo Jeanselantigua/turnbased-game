@@ -36,8 +36,8 @@ public class EnemyTemplate {
     }
 
     /**
-     * @param statMultiplier 1.0 = as written; dungeon waves pass a value &gt; 1 so later
-     *                       floors get harder.
+     * @param statMultiplier 1.0 = as written; dungeon waves pass a block scale
+     *                       so later floors get harder (opening floors can be below 1).
      */
     public Character createInstance(double statMultiplier) {
         Character spawned = character.createInstance();
