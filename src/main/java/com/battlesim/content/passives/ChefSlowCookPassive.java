@@ -3,7 +3,6 @@ package com.battlesim.content.passives;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Passive;
-import com.battlesim.model.Status;
 import java.util.List;
 
 /** Extra damage against siphoned or otherwise afflicted targets. */

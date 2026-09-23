@@ -1,0 +1,7 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.project.referencedLibraries": [
+    "lib/javafx/*.jar"
+  ],
+  "java.debug.settings.onBuildFailureProceed": true
+}

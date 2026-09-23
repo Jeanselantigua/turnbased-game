@@ -4,13 +4,16 @@ import com.battlesim.content.PlayableCharacters;
 import com.battlesim.dungeon.Dungeon;
 import com.battlesim.dungeon.DungeonResult;
 import com.battlesim.dungeon.DungeonRun;
+import com.battlesim.dungeon.SimCamp;
 import com.battlesim.engine.Battle;
 import com.battlesim.engine.BattleResult;
 import com.battlesim.engine.MoveSelector;
 import com.battlesim.engine.SimpleAiMoveSelector;
 import com.battlesim.model.Character;
 import com.battlesim.model.CharacterTemplate;
+import com.battlesim.model.Inventory;
 import com.battlesim.model.Team;
+import com.battlesim.progress.EvenStatAllocator;
 import com.battlesim.util.RandomProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,7 +47,7 @@ public class BalanceSim {
         System.out.println("Roster: " + joinNames(roster));
         System.out.println("AI: SimpleAiMoveSelector  |  max actions: " + MAX_ACTIONS);
         System.out.println("1v1 / 3v3: Phase 2 stats, current 4-move kits, ults start on cooldown");
-        System.out.println("Dungeon climb: level-1 stats, moves unlock while leveling");
+        System.out.println("Dungeon climb: level-1 stats, moves unlock while leveling, sim equips drops (set bonuses first)");
         System.out.println();
 
         runDungeonProgress(roster, random);
@@ -375,7 +378,8 @@ public class BalanceSim {
         Supplier<Dungeon> dungeons = () -> Dungeon.standard(random);
 
         System.out.println("Dungeon climb (" + Dungeon.DEFAULT_FLOORS + " floors, boss every "
-                + Dungeon.BOSS_EVERY + ", start x" + Dungeon.STARTING_SCALE
+                + Dungeon.BOSS_EVERY + ", rest/chest every " + Dungeon.WAYPOINT_EVERY
+                + ", start x" + Dungeon.STARTING_SCALE
                 + " then +" + Dungeon.SCALE_PER_BLOCK
                 + " stats every " + Dungeon.BOSS_EVERY + " floors, "
                 + "party scale solo " + Dungeon.SOLO_SCALE
@@ -427,7 +431,9 @@ public class BalanceSim {
         int[] samples = new int[runs];
         int clears = 0;
         for (int i = 0; i < runs; i++) {
-            DungeonResult result = DungeonRun.run(spawn(party), dungeons.get(), selector, random, false);
+            DungeonResult result = DungeonRun.run(
+                    spawn(party), dungeons.get(), selector, random, false, false,
+                    new EvenStatAllocator(), new Inventory(), new SimCamp());
             samples[i] = result.getWavesCleared();
             if (result.clearedAll()) {
                 clears++;

@@ -1,20 +1,26 @@
 # RPG Battle Sim
 
-A generic turn-based RPG battle engine (Phase 1: no networking yet).
+Single-player turn-based RPG (Honkai Star Rail-style) with a Java battle engine and a JavaFX window.
 
-## How to import into Eclipse
-1. Unzip this folder anywhere on disk.
-2. In Eclipse: File > Import > General > Existing Projects into Workspace.
-3. Click "Select root directory" and choose the unzipped `rpg-battle-sim` folder.
-4. Make sure the project is checked, then click Finish.
-5. Run `Main.java` (Run > Run As > Java Application) to confirm it builds.
-6. Run the tests in `src/test/java` (Run > Run As > JUnit Test) to confirm JUnit is wired up.
+## Eclipse
+1. File > Import > General > Existing Projects into Workspace.
+2. Select this folder (`rpg-battle-sim`).
+3. Console: run `com.battlesim.Main`.
+4. Windowed UI: run `com.battlesim.ui.GuiMain` (use the `GuiMain` launch config so JavaFX gets `--module-path lib/javafx --add-modules javafx.controls --enable-native-access=javafx.graphics`).
+5. Tests: `src/test/java`, Run As > JUnit Test.
+
+## Command line (Windows)
+```
+.\run-ui.ps1
+```
+
+JavaFX 26 Windows jars live in `lib/javafx/`. The engine does not need them — only the UI.
 
 ## Structure
-- `model/` — Character, Stats, Move, Type, Status (plain data classes)
-- `engine/` — TypeChart, DamageCalculator, TurnResolver, Battle (the actual logic — currently stubs with TODOs)
-- `util/` — RandomProvider (testable randomness wrapper)
-
-## Where to start
-Fill in `TypeChart.getMultiplier()` first, then `DamageCalculator.calculateDamage()`,
-then `TurnResolver.resolveTurn()`, then wire it all together in `Battle.run()` and `Main.java`.
+- `model/` — Character, Stats, Move, gear, inventory
+- `engine/` — damage, turns, Battle, BattleObserver
+- `content/` — playable kits, enemies, passives, set bonuses
+- `dungeon/` — floors, waypoints, camp
+- `item/` — drops, gear factory
+- `ui/` — JavaFX shell (Phase 5)
+- `util/` — RandomProvider

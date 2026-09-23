@@ -222,7 +222,7 @@ public class MonkPerfectEnlightenmentTest {
     }
 
     @Test
-    public void blessedProcExtendsEnlightenmentByTwoTurns() {
+    public void applyingBlessedDoesNotExtendEnlightenment() {
         Character monk = monkWith(neverRandom());
         Character foe = dummy("Foe", 200, 10);
         MonkPerfectEnlightenmentPassive pe = monk.getPassive(MonkPerfectEnlightenmentPassive.class);
@@ -236,10 +236,9 @@ public class MonkPerfectEnlightenmentTest {
         List<String> log = new ArrayList<>();
         pe.applyBlessed(foe, 1, log);
 
-        assertEquals(MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS
-                + MonkPerfectEnlightenmentPassive.BLESSED_EXTENSION_TURNS,
+        assertEquals(MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS,
                 pe.getEnlightenedTurnsRemaining());
-        assertTrue(log.stream().anyMatch(line -> line.contains("Enlightenment is extended")));
+        assertTrue(log.stream().noneMatch(line -> line.contains("Enlightenment is extended")));
 
         foe.addBlessedStacks(MonkPerfectEnlightenmentPassive.BLESSED_CAP,
                 MonkPerfectEnlightenmentPassive.BLESSED_CAP);
@@ -501,6 +500,10 @@ public class MonkPerfectEnlightenmentTest {
         assertEquals(0, foe.getBlessedStacks());
         assertEquals(hpBefore - expectedDamage, foe.getStats().getCurrentHp());
         assertTrue(log.stream().anyMatch(line -> line.contains("Divine Blessing")));
+        assertTrue(log.stream().anyMatch(line -> line.contains("Enlightenment is extended")));
+        assertEquals(MonkPerfectEnlightenmentPassive.ENLIGHTENED_TURNS
+                + MonkPerfectEnlightenmentPassive.BLESSED_EXTENSION_TURNS,
+                pe.getEnlightenedTurnsRemaining());
         assertTrue(monk.getMoveCooldown(MonkPerfectEnlightenmentPassive.MOVE_NAME) > 0);
     }
 

@@ -8,6 +8,16 @@ public interface Passive {
         return false;
     }
 
+    /** While true, single-target enemies must target this character. */
+    default boolean forcesAggro(Character self) {
+        return false;
+    }
+
+    /** Skip applying this move's status to {@code target} (damage still lands). */
+    default boolean suppressesOutgoingStatus(Character self, Character target, Move move) {
+        return false;
+    }
+
     default int modifyAccuracy(Character self, Move move, int baseAccuracy) {
         return baseAccuracy;
     }
@@ -190,8 +200,30 @@ public interface Passive {
                            BattleContext context, List<String> log) {
     }
 
+    /**
+     * Replaces the chosen move before hits resolve (e.g. Monk copies an enemy art).
+     */
+    default Move rewriteMove(Character self, Move move, List<Character> targets,
+                              BattleContext context, List<String> log) {
+        return move;
+    }
+
+    /** True if this attack always connects (cannot miss or be dodged). */
+    default boolean attackCannotBeDodged(Character self, Move move) {
+        return false;
+    }
+
     default List<Move> filterOwnMoves(Character self, List<Move> moves, BattleContext context) {
         return moves;
+    }
+
+    /**
+     * Can add or replace targets after a move is chosen (chain lightning, splash).
+     * Return {@code chosen} unchanged if this passive does not apply.
+     */
+    default List<Character> expandTargets(Character self, Move move, List<Character> chosen,
+                                           BattleContext context, List<String> log) {
+        return chosen;
     }
 
     /** Restrict what an opponent may use while this character is in a special state. */

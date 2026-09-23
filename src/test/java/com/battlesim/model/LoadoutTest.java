@@ -68,4 +68,40 @@ public class LoadoutTest {
                 rogue.getStats().getMaxHp());
         assertEquals(10_000 - Gear.upgradeCost(0), bag.getGold());
     }
+
+    @Test
+    public void sellingBagGearPaysScrapPlusUpgradeGold() {
+        Character rogue = PlayableCharacters.rogue().createInstance();
+        Inventory bag = new Inventory();
+        bag.addGold(10_000);
+        Gear helm = GearFactory.create(GearSlot.HELM, GearSet.BULWARK, GearRarity.COMMON,
+                new RandomProvider(1L));
+        bag.add(helm);
+        assertEquals(Gear.scrapValue(GearRarity.COMMON), helm.sellValue());
+        assertTrue(rogue.upgradeGear(helm, bag, new RandomProvider(3L)));
+        int spent = Gear.goldToReach(1);
+        int goldBefore = bag.getGold();
+        int paid = bag.sell(helm);
+        assertEquals(Gear.scrapValue(GearRarity.COMMON) + spent, paid);
+        assertEquals(goldBefore + paid, bag.getGold());
+        assertTrue(bag.isEmpty());
+    }
+
+    @Test
+    public void sellingEquippedGearUnequipsAndRefundsUpgrades() {
+        Character rogue = PlayableCharacters.rogue().createInstance();
+        int baseHp = rogue.getStats().getMaxHp();
+        Inventory bag = new Inventory();
+        bag.addGold(10_000);
+        Gear helm = GearFactory.create(GearSlot.HELM, GearSet.BULWARK, GearRarity.RARE,
+                new RandomProvider(1L));
+        bag.add(helm);
+        rogue.equip(helm, bag);
+        assertTrue(rogue.upgradeGear(helm, bag, new RandomProvider(3L)));
+        int paid = rogue.sellEquipped(GearSlot.HELM, bag);
+        assertEquals(Gear.scrapValue(GearRarity.RARE) + Gear.goldToReach(1), paid);
+        assertNull(rogue.getLoadout().get(GearSlot.HELM));
+        assertEquals(baseHp, rogue.getStats().getMaxHp());
+        assertTrue(bag.isEmpty());
+    }
 }

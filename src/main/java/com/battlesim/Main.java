@@ -33,11 +33,12 @@ public class Main {
         MoveSelector ai = new SimpleAiMoveSelector(random);
 
         System.out.println("=== RPG Battle Sim ===");
+        System.out.println("Console play. For the windowed UI, run com.battlesim.ui.GuiMain");
         System.out.println("1. PvP (you vs AI team)");
         System.out.println("2. Dungeon climb");
         int mode = readChoice(scanner, "Mode", 1, 2);
 
-        List<Character> playerTeam = pickTeam(scanner, "your team", TEAM_SLOTS);
+        List<Character> playerTeam = pickTeam(scanner, "your team", TEAM_SLOTS, mode == 1);
         if (playerTeam.isEmpty()) {
             System.out.println("Need at least one character.");
             scanner.close();
@@ -45,7 +46,7 @@ public class Main {
         }
 
         if (mode == 1) {
-            List<Character> enemyTeam = pickTeam(scanner, "the AI team", TEAM_SLOTS);
+            List<Character> enemyTeam = pickTeam(scanner, "the AI team", TEAM_SLOTS, true);
             if (enemyTeam.isEmpty()) {
                 System.out.println("Need at least one enemy.");
                 scanner.close();
@@ -59,7 +60,8 @@ public class Main {
         } else {
             System.out.println();
             System.out.println("Dungeon: " + Dungeon.DEFAULT_FLOORS + " floors, boss every "
-                    + Dungeon.BOSS_EVERY + ", enemies start at x" + Dungeon.STARTING_SCALE
+                    + Dungeon.BOSS_EVERY + ", rest or chest every " + Dungeon.WAYPOINT_EVERY
+                    + ", enemies start at x" + Dungeon.STARTING_SCALE
                     + " then +" + Dungeon.SCALE_PER_BLOCK + " every " + Dungeon.BOSS_EVERY
                     + ". Party of " + playerTeam.size()
                     + " (enemy stats x" + Dungeon.partySizeScale(playerTeam.size()) + ").");
@@ -79,8 +81,10 @@ public class Main {
         scanner.close();
     }
 
-    private static List<Character> pickTeam(Scanner scanner, String label, int slots) {
-        List<CharacterTemplate> roster = PlayableCharacters.all();
+    private static List<Character> pickTeam(Scanner scanner, String label, int slots, boolean pvp) {
+        List<CharacterTemplate> roster = pvp
+                ? PlayableCharacters.arenaRoster()
+                : PlayableCharacters.all();
         List<Character> team = new ArrayList<>();
         Set<String> taken = new HashSet<>();
 
@@ -103,7 +107,7 @@ public class Main {
                     continue;
                 }
                 taken.add(template.getName());
-                team.add(template.createInstance());
+                team.add(pvp ? template.createPvpInstance() : template.createInstance());
                 System.out.println("  -> " + template.getName());
                 break;
             }

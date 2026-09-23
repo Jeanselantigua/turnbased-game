@@ -15,15 +15,15 @@ import java.util.List;
 public class ElectricWhirlwindPassive implements Passive {
 
     public static final String MOVE_NAME = "Electric Whirlwind";
-    public static final int HIT_POWER = 50;
+    public static final int HIT_POWER = 40;
 
     public static Move createMove() {
-        return new Move(MOVE_NAME, Type.LIGHTNING, HIT_POWER, 90, 0, false,
-                Status.PARALYSIS, 100, 3);
+        return new Move(MOVE_NAME, Type.LIGHTNING, HIT_POWER, 100, 0, false,
+                Status.PARALYSIS, 100, 4);
     }
 
     public static Move physicalSlash() {
-        return new Move(MOVE_NAME, Type.PHYSICAL, HIT_POWER, 90, 0, false,
+        return new Move(MOVE_NAME, Type.PHYSICAL, HIT_POWER, 100, 0, false,
                 Status.BLEED, 100);
     }
 

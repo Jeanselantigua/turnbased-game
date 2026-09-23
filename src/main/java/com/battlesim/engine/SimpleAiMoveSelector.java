@@ -2,6 +2,7 @@ package com.battlesim.engine;
 
 import com.battlesim.content.passives.HeavenPiercingBladePassive;
 import com.battlesim.content.passives.MonkPerfectEnlightenmentPassive;
+import com.battlesim.content.passives.PridefulTauntPassive;
 import com.battlesim.content.passives.RogueCritStealthPassive;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
@@ -68,6 +69,14 @@ public class SimpleAiMoveSelector implements MoveSelector {
         Character injuredAlly = lowestHpBelow(allyTeam, HEAL_THRESHOLD);
         if (heal != null && injuredAlly != null) {
             return new ActionChoice(heal, List.of(injuredAlly));
+        }
+
+        Move taunt = findMove(moves, PridefulTauntPassive.MOVE_NAME);
+        if (taunt != null && hasLivingAlly(actor, allyTeam)) {
+            PridefulTauntPassive pride = actor.getPassive(PridefulTauntPassive.class);
+            if (pride == null || !pride.isTaunting()) {
+                return new ActionChoice(taunt, List.of(actor));
+            }
         }
 
         Move selfShield = findSelfShieldMove(moves);
@@ -178,7 +187,8 @@ public class SimpleAiMoveSelector implements MoveSelector {
 
     private static Move findSelfShieldMove(List<Move> moves) {
         for (Move move : moves) {
-            if (move.getInflictedStatus() == Status.SELF_SHIELD) {
+            if (move.getInflictedStatus() == Status.SELF_SHIELD
+                    && !PridefulTauntPassive.MOVE_NAME.equals(move.getName())) {
                 return move;
             }
         }

@@ -6,10 +6,13 @@ import com.battlesim.content.passives.DualSwordsmanStatusRerollPassive;
 import com.battlesim.content.passives.CavemanFrenzyPassive;
 import com.battlesim.content.passives.ChefChickenPassive;
 import com.battlesim.content.passives.ChefSlowCookPassive;
-import com.battlesim.content.passives.ChampionsGiftPassive;
-import com.battlesim.content.passives.HeavenPiercingBladePassive;
-import com.battlesim.content.passives.KnightShieldPassive;
+import com.battlesim.content.passives.ChampionsStrengthPassive;
+import com.battlesim.content.passives.PridefulTauntPassive;
+import com.battlesim.content.passives.WellOiledRagePassive;
+import com.battlesim.content.passives.WillOfHumanityPassive;
+import com.battlesim.content.passives.MonkDivinePalmPassive;
 import com.battlesim.content.passives.MonkHolySplitPassive;
+import com.battlesim.content.passives.MonkMasterOfAnyArtPassive;
 import com.battlesim.content.passives.MonkParryPassive;
 import com.battlesim.content.passives.MonkPerfectEnlightenmentPassive;
 import com.battlesim.content.passives.ElectricWhirlwindPassive;
@@ -18,11 +21,13 @@ import com.battlesim.content.passives.RogueWoundPassive;
 import com.battlesim.content.passives.RogueMomentumPassive;
 import com.battlesim.content.passives.WizardChargedPassive;
 import com.battlesim.content.passives.WizardHuntPassive;
+import com.battlesim.content.passives.WizardStormPassive;
 import com.battlesim.content.passives.WomanBlessingPassive;
 import com.battlesim.content.passives.WomanSparkMercyPassive;
 import com.battlesim.content.passives.SionExplodingShieldPassive;
 import com.battlesim.content.passives.SionKillMaxHpPassive;
 import com.battlesim.content.passives.SionRevivePassive;
+import com.battlesim.content.passives.SionSlamPassive;
 import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.Move;
 import com.battlesim.model.MoveKit;
@@ -35,15 +40,16 @@ import java.util.List;
 public class PlayableCharacters {
 
     public static CharacterTemplate knight() {
-        Move slash = new Move("Slash", Type.PHYSICAL, 60, 100, 0, false, Status.NONE, 0);
-        Move shieldBash = new Move("Shield Bash", Type.PHYSICAL, 40, 90, 0, false, Status.STUN, 30);
-        Move fortify = new Move("Fortify", Type.PHYSICAL, 60, 100, 0, false, Status.SELF_SHIELD, 100);
-        Move heavenPiercingBlade = HeavenPiercingBladePassive.createMove();
+        Move upliftingSlash = ChampionsStrengthPassive.createUpliftingSlash();
+        Move pridefulTaunt = PridefulTauntPassive.createMove();
+        Move visceralWound = ChampionsStrengthPassive.createVisceralWound();
+        Move willOfHumanity = WillOfHumanityPassive.createMove();
 
-        return new CharacterTemplate("Mechanized Champion", 120, 30, 20, 0, 10, 20,
-                Type.PHYSICAL, MoveKit.ladder(slash, shieldBash, fortify, heavenPiercingBlade),
-                List.of(ChampionsGiftPassive::new, KnightShieldPassive::new,
-                        HeavenPiercingBladePassive::new),
+        // Passive order: flat damage, then rage, then the spent-blade penalty.
+        return new CharacterTemplate("Mechanized Champion", 120, 30, 20, 0, -10, 20,
+                Type.PHYSICAL, MoveKit.ladder(upliftingSlash, pridefulTaunt, visceralWound, willOfHumanity),
+                List.of(ChampionsStrengthPassive::new, WellOiledRagePassive::new,
+                        PridefulTauntPassive::new, WillOfHumanityPassive::new),
                 List.of(StatKind.HP, StatKind.DEFENSE));
     }
 
@@ -60,16 +66,16 @@ public class PlayableCharacters {
     }
 
     public static CharacterTemplate monk() {
-        Move oochie = new Move("Oochie", Type.HOLY,60, 100, 0, false, Status.NONE, 0);
-        Move divinePalm = new Move("Divine Palm", Type.HOLY, 60, 95, 0, true, Status.NONE, 0);
+        Move oochie = new Move(MonkPerfectEnlightenmentPassive.OOCHIE_NAME, Type.HOLY, 60, 100, 0, false, Status.NONE, 0);
+        Move divinePalm = new Move(MonkPerfectEnlightenmentPassive.DIVINE_PALM_NAME, Type.HOLY, 40, 95, 0, true, Status.NONE, 0);
         Move meditate = MonkPerfectEnlightenmentPassive.createMove();
-        Move vajrapani = new Move("Vajrapani", Type.HOLY, 25, 95, 0, true, Status.NONE, 0,
-                Growth.ULT_COOLDOWN_TURNS, 1, 12);
+        Move master = MonkMasterOfAnyArtPassive.createMove();
 
         return new CharacterTemplate("Roeseph", 84, 23, 18, 20, 25, 15,
-                Type.HOLY, MoveKit.ladder(oochie, divinePalm, meditate, vajrapani),
+                Type.HOLY, MoveKit.ladder(oochie, meditate, divinePalm, master),
                 List.of(MonkHolySplitPassive::new, MonkParryPassive::new,
-                        MonkPerfectEnlightenmentPassive::new),
+                        MonkPerfectEnlightenmentPassive::new, MonkMasterOfAnyArtPassive::new,
+                        MonkDivinePalmPassive::new),
                 List.of(StatKind.ATTACK, StatKind.MAGIC_ATTACK));
     }
 
@@ -115,13 +121,13 @@ public class PlayableCharacters {
     public static CharacterTemplate wizard() {
         Move bolt = new Move("Bolt", Type.LIGHTNING, 45, 95, 0, true, Status.PARALYSIS, 30);
         Move staticShock = new Move("Static", Type.LIGHTNING, 20, 90, 0, true, Status.PARALYSIS, 70);
-        Move chain = new Move("Chain Lightning", Type.LIGHTNING, 55, 90, 0, true, Status.PARALYSIS, 40);
-        Move wrath = new Move("Thunder God's Wrath", Type.LIGHTNING, 95, 90, 0, true, Status.PARALYSIS, 50,
-                Growth.ULT_COOLDOWN_TURNS);
+        Move chain = new Move(WizardStormPassive.CHAIN_NAME, Type.LIGHTNING, 35, 90, 0, true, Status.PARALYSIS, 40);
+        Move wrath = new Move(WizardStormPassive.WRATH_NAME, Type.LIGHTNING, 75, 90, 0, true, Status.PARALYSIS, 50,
+                Growth.ULT_COOLDOWN_TURNS, 1, 1, true);
 
         return new CharacterTemplate("WEWE Head", 96, 8, 18, 30, 20, 20,
                 Type.LIGHTNING, MoveKit.ladder(bolt, staticShock, chain, wrath),
-                List.of(WizardHuntPassive::new, WizardChargedPassive::new),
+                List.of(WizardHuntPassive::new, WizardChargedPassive::new, WizardStormPassive::new),
                 List.of(StatKind.MAGIC_ATTACK, StatKind.SPEED));
     }
 
@@ -134,18 +140,19 @@ public class PlayableCharacters {
 
         return new CharacterTemplate("Sion", 117, 13, 18, 10, 18, 8,
                 Type.LIGHTNING, MoveKit.ladder(slam, roar, slow, onslaught),
-                List.of(SionRevivePassive::new, SionExplodingShieldPassive::new, SionKillMaxHpPassive::new),
+                List.of(SionRevivePassive::new, SionExplodingShieldPassive::new,
+                        SionKillMaxHpPassive::new, SionSlamPassive::new),
                 List.of(StatKind.HP, StatKind.DEFENSE));
     }
 
     public static CharacterTemplate dualSwordsman() {
-        Move tbolt = new Move("Thunderbolt", Type.LIGHTNING, 50, 90, 0, true, Status.SLOW, 30);
-        Move dslash = new Move("Diagonal Strike", Type.PHYSICAL, 45, 90, 0, false, Status.BLEED, 30);
-        Move lslash = new Move("Lightning slash", Type.LIGHTNING, 45, 90, 0, false, Status.PARALYSIS, 30);
+        Move tbolt = new Move("Thunderbolt", Type.LIGHTNING, 30, 90, 0, true, Status.SLOW, 15);
+        Move dslash = new Move("Diagonal Strike", Type.PHYSICAL, 25, 90, 0, false, Status.BLEED, 15);
+        Move lslash = new Move("Lightning slash", Type.LIGHTNING, 25, 90, 0, false, Status.PARALYSIS, 15);
         Move whirlwind = ElectricWhirlwindPassive.createMove();
 
         return new CharacterTemplate("Dual Swordsman", 75, 25, 25, 30, 15, 15,
-                Type.LIGHTNING, MoveKit.ladder(tbolt, dslash, lslash, whirlwind),
+                Type.PHYSICAL, MoveKit.ladder(tbolt, dslash, lslash, whirlwind),
                 List.of(DualSwordsmanDoubleHitPassive::new, DualSwordsmanStatusRerollPassive::new,
                         ElectricWhirlwindPassive::new),
                 List.of(StatKind.ATTACK, StatKind.MAGIC_ATTACK));
@@ -161,7 +168,7 @@ public class PlayableCharacters {
      */
     public static List<CharacterTemplate> arenaRoster() {
         return List.of(
-                knight().withStats(200, 57, 37, 0, 20, 26),
+                knight().withStats(200, 57, 37, 0, -20, 26),
                 rogue().withStats(200, 60, 20, 20, 30, 70),
                 monk().withStats(200, 45, 35, 40, 50, 30),
                 caveman().withStats(220, 50, 70, 0, 40, 20),
@@ -169,6 +176,6 @@ public class PlayableCharacters {
                 healer().withStats(230, 10, 28, 60, 40, 32),
                 wizard().withStats(210, 15, 35, 60, 40, 40),
                 sion().withStats(270, 25, 35, 20, 35, 15),
-                dualSwordsman().withStats(180, 50, 50, 60, 30, 30));
+                dualSwordsman().withStats(180, 50, 50, 30, 30, 60));
     }
 }

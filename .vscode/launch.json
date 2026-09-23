@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "BalanceSim",
+      "request": "launch",
+      "mainClass": "com.battlesim.BalanceSim",
+      "projectName": "rpg-battle-sim"
+    },
+    {
+      "type": "java",
+      "name": "JavaFX UI",
+      "request": "launch",
+      "mainClass": "com.battlesim.ui.GuiMain",
+      "projectName": "rpg-battle-sim",
+      "vmArgs": "--module-path lib/javafx --add-modules javafx.controls --enable-native-access=javafx.graphics"
+    },
+    {
+      "type": "java",
+      "name": "Console Main",
+      "request": "launch",
+      "mainClass": "com.battlesim.Main",
+      "projectName": "rpg-battle-sim"
+    }
+  ]
+}

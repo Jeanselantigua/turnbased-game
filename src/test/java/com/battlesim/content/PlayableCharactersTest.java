@@ -2,19 +2,14 @@ package com.battlesim.content;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import com.battlesim.engine.ActionChoice;
-import com.battlesim.engine.DamageCalculator;
-import com.battlesim.engine.TurnResolver;
-import com.battlesim.engine.TypeChart;
+import com.battlesim.content.passives.MonkMasterOfAnyArtPassive;
+import com.battlesim.content.passives.RogueWoundPassive;
 import com.battlesim.model.CharacterTemplate;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
-import com.battlesim.model.Stats;
-import com.battlesim.model.Type;
-import com.battlesim.content.passives.RogueWoundPassive;
 import com.battlesim.model.StatKind;
+import com.battlesim.model.Type;
 import com.battlesim.progress.Growth;
-import com.battlesim.util.RandomProvider;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -63,30 +58,15 @@ public class PlayableCharactersTest {
     }
 
     @Test
-    public void monkUltIsVajrapaniAndHitsOneToTwelveTimes() {
+    public void monkUltIsMasterOfAnyArt() {
         Move ult = PlayableCharacters.monk().getKit().getUlt();
-        assertEquals("Vajrapani", ult.getName());
+        assertEquals(MonkMasterOfAnyArtPassive.MOVE_NAME, ult.getName());
         assertEquals(Type.HOLY, ult.getType());
         assertTrue(ult.isMagic());
-        assertEquals(1, ult.getMinHits());
-        assertEquals(12, ult.getMaxHits());
+        assertEquals(0, ult.getPower());
         assertEquals(Growth.ULT_COOLDOWN_TURNS, ult.getCooldownTurns());
-
-        Character monk = PlayableCharacters.monk().createFullyLearnedInstance();
-        Character dummy = new Character("Dummy", new Stats(9999, 1, 1, 1, 1, 1),
-                Type.PHYSICAL, List.of());
-        RandomProvider rolls = new RandomProvider() {
-            @Override
-            public int nextInt(int min, int max) {
-                if (min == 1 && max == 12) {
-                    return 12;
-                }
-                return min;
-            }
-        };
-        TurnResolver resolver = new TurnResolver(new DamageCalculator(new TypeChart(), rolls), rolls);
-        List<String> log = resolver.resolveAction(monk, new ActionChoice(ult, List.of(dummy)));
-        assertTrue(log.stream().anyMatch(line -> line.contains("Vajrapani strikes 12 times")));
+        assertTrue(PlayableCharacters.monk().createFullyLearnedInstance()
+                .hasPassive(MonkMasterOfAnyArtPassive.class));
     }
 
     @Test
@@ -143,10 +123,31 @@ public class PlayableCharactersTest {
     }
 
     @Test
+    public void pvpInstanceKnowsFullKitWithUltOnCooldown() {
+        for (CharacterTemplate template : PlayableCharacters.arenaRoster()) {
+            Character fighter = template.createPvpInstance();
+            assertEquals(template.getName() + " PvP kit", 4, fighter.getMoves().size());
+            Move ult = fighter.getKit().getUlt();
+            assertEquals(template.getName() + " ult starts on its cooldown",
+                    ult.getCooldownTurns(), fighter.getMoveCooldown(ult.getName()));
+            for (int i = 0; i < ult.getCooldownTurns(); i++) {
+                fighter.tickMoveCooldowns();
+            }
+            assertEquals(template.getName() + " ult should be ready after its cooldown",
+                    0, fighter.getMoveCooldown(ult.getName()));
+        }
+        Character rogue = PlayableCharacters.arenaRoster().get(1).createPvpInstance();
+        assertEquals(200, rogue.getStats().getMaxHp());
+        assertEquals(60, rogue.getStats().getAttack());
+        assertEquals(70, rogue.getStats().getSpeed());
+        Character dungeonRogue = PlayableCharacters.rogue().createPvpInstance();
+        assertTrue(dungeonRogue.getStats().getMaxHp() < rogue.getStats().getMaxHp());
+    }
+
+    @Test
     public void arenaUltStartsOnCooldown() {
         for (CharacterTemplate template : PlayableCharacters.arenaRoster()) {
-            Character fighter = template.createFullyLearnedInstance();
-            fighter.putUltOnCooldown();
+            Character fighter = template.createPvpInstance();
             Move ult = fighter.getKit().getUlt();
             assertEquals(template.getName() + " ult should start on cooldown",
                     ult.getCooldownTurns(), fighter.getMoveCooldown(ult.getName()));

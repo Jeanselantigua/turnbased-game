@@ -160,7 +160,7 @@ public class TurnResolverTest {
     }
 
     @Test
-    public void dualSwordsmanBleedSnapshotsDoubleAttack() {
+    public void dualSwordsmanBleedSnapshotsOneAndAHalfAttack() {
         DualSwordsmanStatusRerollPassive statusPassive = new DualSwordsmanStatusRerollPassive();
         Character attacker = new Character("Dual Swordsman",
                 new Stats(180, 50, 50, 60, 30, 30),
@@ -171,12 +171,12 @@ public class TurnResolverTest {
         List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(rend, List.of(enemy)));
 
         assertEquals(Status.BLEED, enemy.getStatus());
-        assertEquals(100, enemy.getStatusMagnitude());
-        assertTrue(log.stream().anyMatch(line -> line.contains("twice as deep")));
+        assertEquals(75, enemy.getStatusMagnitude());
+        assertTrue(log.stream().anyMatch(line -> line.contains("makes bleed deeper")));
     }
 
     @Test
-    public void dualSwordsmanParalysisSkipLocksForTwoTurns() {
+    public void dualSwordsmanDoesNotDoubleParalysis() {
         DualSwordsmanStatusRerollPassive statusPassive = new DualSwordsmanStatusRerollPassive();
         Character attacker = new Character("Dual Swordsman",
                 new Stats(180, 50, 50, 60, 30, 30),
@@ -184,40 +184,11 @@ public class TurnResolverTest {
         Character enemy = character("Enemy", 400, 10, 10);
         Move shock = new Move("Lightning slash", Type.LIGHTNING, 20, 100, 0, false, Status.PARALYSIS, 100);
 
-        alwaysHits().resolveAction(attacker, new ActionChoice(shock, List.of(enemy)));
+        List<String> log = alwaysHits().resolveAction(attacker, new ActionChoice(shock, List.of(enemy)));
 
         assertEquals(Status.PARALYSIS, enemy.getStatus());
-        assertEquals(2, enemy.getStatusMagnitude());
-
-        Move slash = new Move("Slash", Type.PHYSICAL, 20, 100, 0, false, Status.NONE, 0);
-        RandomProvider paralysisRandom = new RandomProvider() {
-            private int doubles = 0;
-
-            @Override
-            public int nextInt(int min, int max) {
-                return min;
-            }
-
-            @Override
-            public double nextDouble() {
-                doubles++;
-                return doubles == 1 ? 0.0 : 0.99;
-            }
-        };
-        TurnResolver resolver = new TurnResolver(new DamageCalculator(new TypeChart(), paralysisRandom),
-                paralysisRandom);
-        Character dummy = character("Dummy", 200, 10, 10);
-
-        List<String> firstSkip = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
-        assertTrue(firstSkip.stream().anyMatch(line -> line.contains("paralyzed")));
-        assertEquals(1, enemy.getQueuedSkipTurns());
-
-        List<String> secondSkip = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
-        assertTrue(secondSkip.stream().anyMatch(line -> line.contains("paralyzed")));
-        assertEquals(0, enemy.getQueuedSkipTurns());
-
-        List<String> acts = resolver.resolveAction(enemy, new ActionChoice(slash, List.of(dummy)));
-        assertTrue(acts.stream().anyMatch(line -> line.contains("uses Slash")));
+        assertEquals(0, enemy.getStatusMagnitude());
+        assertFalse(log.stream().anyMatch(line -> line.contains("seize for 2 turns")));
     }
 
     @Test

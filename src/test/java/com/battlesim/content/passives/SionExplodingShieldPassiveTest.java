@@ -85,7 +85,8 @@ public class SionExplodingShieldPassiveTest {
         assertTrue(log.stream().anyMatch(line -> line.contains("shatters")));
 
         passive.onFieldChanged(sion, context, log);
-        assertEquals(100, foe.getStats().getCurrentHp());
+        int expected = 200 - SionExplodingShieldPassive.explosionDamage(sion);
+        assertEquals(expected, foe.getStats().getCurrentHp());
         assertTrue(log.stream().anyMatch(line -> line.contains("explodes")));
         assertFalse(sion.getStats().hasShield());
     }

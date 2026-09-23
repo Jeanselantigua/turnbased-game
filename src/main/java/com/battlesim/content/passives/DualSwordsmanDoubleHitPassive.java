@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class DualSwordsmanDoubleHitPassive implements Passive {
 
-    static final double REPEAT_CHANCE = 0.25;
+    static final double REPEAT_CHANCE = 0.15;
     private final Random random;
 
     public DualSwordsmanDoubleHitPassive() {

@@ -37,34 +37,64 @@ public class TurnResolver {
             return log;
         }
 
-        Move move = choice.getMove();
+        Move chosen = choice.getMove();
+        Move move = chosen;
+        for (Passive passive : snapshotPassives(actor)) {
+            Move next = passive.rewriteMove(actor, move, choice.getTargets(), context, log);
+            if (next != null) {
+                move = next;
+            }
+        }
         log.add(actor.getName() + " uses " + move.getName() + "!");
 
-        resolveHits(actor, move, choice.getTargets(), context, log);
-        resolveFollowUps(actor, move, choice.getTargets(), context, log);
+        List<Character> targets = resolveTargets(actor, move, choice.getTargets(), context, log);
+        resolveHits(actor, move, targets, context, log);
+        resolveFollowUps(actor, move, targets, context, log);
 
         if (!move.targetsAllies() && !actor.isFainted()) {
             boolean repeat = false;
             for (Passive passive : snapshotPassives(actor)) {
-                if (passive.shouldRepeatAction(actor, move, choice.getTargets(), context, log)) {
+                if (passive.shouldRepeatAction(actor, move, targets, context, log)) {
                     repeat = true;
                 }
             }
             if (repeat) {
-                resolveHits(actor, move, choice.getTargets(), context, log);
-                resolveFollowUps(actor, move, choice.getTargets(), context, log);
+                resolveHits(actor, move, targets, context, log);
+                resolveFollowUps(actor, move, targets, context, log);
             }
         }
 
-        if (move.getCooldownTurns() > 0) {
-            actor.startMoveCooldown(move.getName(), move.getCooldownTurns());
+        if (chosen.getCooldownTurns() > 0) {
+            actor.startMoveCooldown(chosen.getName(), chosen.getCooldownTurns());
         }
 
         for (Passive passive : snapshotPassives(actor)) {
-            passive.onActionResolved(actor, move, choice.getTargets(), context, log);
+            passive.onActionResolved(actor, move, targets, context, log);
         }
 
         return log;
+    }
+
+    private List<Character> resolveTargets(Character actor, Move move, List<Character> chosen,
+                                            BattleContext context, List<String> log) {
+        List<Character> targets = new ArrayList<>();
+        if (move.hitsAllEnemies() && context != null) {
+            for (Character enemy : context.enemiesOf(actor)) {
+                if (!enemy.isFainted()) {
+                    targets.add(enemy);
+                }
+            }
+        }
+        if (targets.isEmpty() && chosen != null) {
+            targets.addAll(chosen);
+        }
+        for (Passive passive : snapshotPassives(actor)) {
+            List<Character> expanded = passive.expandTargets(actor, move, targets, context, log);
+            if (expanded != null) {
+                targets = new ArrayList<>(expanded);
+            }
+        }
+        return targets;
     }
 
     private void resolveHits(Character actor, Move move, List<Character> targets,
@@ -120,9 +150,16 @@ public class TurnResolver {
         }
         effectiveAccuracy = Math.max(0, Math.min(100, effectiveAccuracy));
 
-        boolean hits = randomProvider.nextInt(1, 100) <= effectiveAccuracy;
+        boolean cannotBeAvoided = false;
+        for (Passive passive : snapshotPassives(actor)) {
+            if (passive.attackCannotBeDodged(actor, move)) {
+                cannotBeAvoided = true;
+                break;
+            }
+        }
+        boolean hits = cannotBeAvoided || randomProvider.nextInt(1, 100) <= effectiveAccuracy;
         boolean dodged = false;
-        if (hits && !move.targetsAllies()) {
+        if (hits && !cannotBeAvoided && !move.targetsAllies()) {
             for (Passive passive : snapshotPassives(target)) {
                 if (passive.rollDodge(target, actor, move)) {
                     dodged = true;
@@ -301,6 +338,11 @@ public class TurnResolver {
         if (status == Status.NONE || status == Status.HEAL || status == Status.SHIELD
                 || status == Status.SELF_SHIELD || status == Status.LEECH) {
             return;
+        }
+        for (Passive passive : snapshotPassives(actor)) {
+            if (passive.suppressesOutgoingStatus(actor, target, move)) {
+                return;
+            }
         }
         if (status == Status.SIPHON) {
             if (rollStatusChance(actor, target, move, log)) {

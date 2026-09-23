@@ -40,7 +40,7 @@ public class DamageCalculator {
         double typeMultiplier = typeChart.getMultiplier(move.getType(), defender.getAffinity());
         double variance = randomProvider.nextInt(85, 100) / 100.0; // 85%-100% roll
 
-        double total = base * stab * typeMultiplier * variance;
+        double total = base * stab*  typeMultiplier * variance;
 
         return (int) Math.round(total);
     }

@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src/main/java" output="bin/main"/>
-	<classpathentry kind="src" path="src/test/java" output="bin/test"/>
+	<classpathentry kind="src" path="src/main/resources" output="bin/main"/>
+	<classpathentry kind="src" path="src/test/java" output="bin/test">
+		<attributes>
+			<attribute name="test" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="lib/javafx/javafx-base-26-win.jar"/>
+	<classpathentry kind="lib" path="lib/javafx/javafx-graphics-26-win.jar"/>
+	<classpathentry kind="lib" path="lib/javafx/javafx-controls-26-win.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

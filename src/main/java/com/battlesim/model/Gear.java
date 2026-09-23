@@ -120,6 +120,27 @@ public final class Gear {
         return TOTAL_UPGRADE_GOLD * triangleTo / triangleMax;
     }
 
+    /** Vendor scrap for a +0 piece. Upgrades refund {@link #goldToReach(int)} on top. */
+    public static int scrapValue(GearRarity rarity) {
+        if (rarity == GearRarity.LEGENDARY) {
+            return 120;
+        }
+        if (rarity == GearRarity.EPIC) {
+            return 60;
+        }
+        if (rarity == GearRarity.RARE) {
+            return 25;
+        }
+        if (rarity == GearRarity.COMMON) {
+            return 10;
+        }
+        return 0;
+    }
+
+    public int sellValue() {
+        return scrapValue(rarity) + goldToReach(level);
+    }
+
     public static int mainStatAt(StatKind kind, int gearLevel) {
         int bounded = Math.max(0, Math.min(MAX_LEVEL, gearLevel));
         if (kind == StatKind.HP) {

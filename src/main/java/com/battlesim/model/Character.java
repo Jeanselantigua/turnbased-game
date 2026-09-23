@@ -33,6 +33,8 @@ public class Character {
     public static final int WOUND_STACK_CAP = 6;
     private Character summoner;
     private int blessedStacks;
+    private Move queuedMove;
+    private List<Character> queuedTargets = List.of();
 
     public Character(String name, Stats stats, Type affinity, List<Move> moves, List<Passive> passives) {
         this(name, stats, affinity, moves, passives, List.of());
@@ -153,6 +155,18 @@ public class Character {
         Gear removed = loadout.unequip(this, slot, inventory);
         SetBonuses.refresh(this, loadout);
         return removed;
+    }
+
+    /**
+     * Unequips a slot into the bag, then sells it. Upgrade gold is refunded
+     * in the sell price. @return gold gained, or 0 if the slot was empty
+     */
+    public int sellEquipped(GearSlot slot, Inventory inventory) {
+        Gear piece = unequip(slot, inventory);
+        if (piece == null || inventory == null) {
+            return 0;
+        }
+        return inventory.sell(piece);
     }
 
     /**
@@ -454,6 +468,19 @@ public class Character {
 
     public boolean isFainted() { return stats.isFainted(); }
 
+    /**
+     * Dungeon rest: full HP (revives), clear statuses / wounds / siphon,
+     * and ready every move.
+     */
+    public void restFully() {
+        stats.restoreFully();
+        setStatus(Status.NONE);
+        clearSiphon();
+        consumeWoundStacks();
+        clearBlessedStacks();
+        moveCooldowns.clear();
+    }
+
     public Character getSiphonSource() { return siphonSource; }
     public int getSiphonTurnsRemaining() { return siphonTurnsRemaining; }
     public boolean isSiphoned() { return siphonTurnsRemaining > 0 && siphonSource != null; }
@@ -605,10 +632,18 @@ public class Character {
     }
 
     public void startMoveCooldown(String moveName, int turns) {
+        if (moveName == null) {
+            return;
+        }
         if (turns <= 0) {
+            moveCooldowns.remove(moveName);
             return;
         }
         moveCooldowns.put(moveName, turns);
+    }
+
+    public void clearMoveCooldown(String moveName) {
+        startMoveCooldown(moveName, 0);
     }
 
     public int getMoveCooldown(String moveName) {
@@ -618,5 +653,27 @@ public class Character {
     public void tickMoveCooldowns() {
         moveCooldowns.replaceAll((name, remaining) -> Math.max(0, remaining - 1));
         moveCooldowns.values().removeIf(remaining -> remaining <= 0);
+    }
+
+    /** Queues a follow-up to resolve instead of picking a move (e.g. a channeled slam). */
+    public void queueAction(Move move, List<Character> targets) {
+        this.queuedMove = move;
+        this.queuedTargets = targets == null ? List.of() : List.copyOf(targets);
+    }
+
+    public boolean hasQueuedAction() {
+        return queuedMove != null;
+    }
+
+    public Move consumeQueuedMove() {
+        Move move = queuedMove;
+        queuedMove = null;
+        return move;
+    }
+
+    public List<Character> consumeQueuedTargets() {
+        List<Character> targets = queuedTargets;
+        queuedTargets = List.of();
+        return targets;
     }
 }

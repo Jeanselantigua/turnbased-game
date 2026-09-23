@@ -23,6 +23,26 @@ public final class ConsoleCamp implements Camp {
     }
 
     @Override
+    public WaypointChoice pickWaypoint(List<Character> party, Inventory inventory, int waveNumber) {
+        System.out.println();
+        System.out.println("--- Waypoint (floor " + waveNumber + ") ---");
+        if (party != null) {
+            for (Character member : party) {
+                if (member == null || member.isSummon()) {
+                    continue;
+                }
+                String hp = member.isFainted()
+                        ? "fainted"
+                        : member.getStats().getCurrentHp() + "/" + member.getStats().getMaxHp();
+                System.out.println("  " + member.getName() + "  " + hp);
+            }
+        }
+        System.out.println("  1. Rest (full heal, revive, clear statuses)");
+        System.out.println("  2. Open a chest (gear and gold, no heal)");
+        return readChoice("Waypoint", 1, 2) == 1 ? WaypointChoice.REST : WaypointChoice.CHEST;
+    }
+
+    @Override
     public void afterWave(List<Character> party, Inventory inventory, int waveNumber, boolean moreWaves) {
         if (party == null || party.isEmpty() || inventory == null) {
             return;
@@ -36,12 +56,17 @@ public final class ConsoleCamp implements Camp {
             System.out.println("  1. Continue");
             System.out.println("  2. Character menu");
             System.out.println("  3. View bag");
-            int choice = readChoice("Camp", 1, 3);
+            System.out.println("  4. Sell from bag");
+            int choice = readChoice("Camp", 1, 4);
             if (choice == 1) {
                 return;
             }
             if (choice == 3) {
                 printBag(inventory);
+                continue;
+            }
+            if (choice == 4) {
+                sellFromBag(inventory);
                 continue;
             }
             Character member = pickCharacter(party);
@@ -59,8 +84,9 @@ public final class ConsoleCamp implements Camp {
             System.out.println("  3. Upgrade equipped");
             System.out.println("  4. Upgrade from bag");
             System.out.println("  5. Spend move points");
+            System.out.println("  6. Sell equipped");
             System.out.println("  0. Back");
-            int choice = readChoice("Action", 0, 5);
+            int choice = readChoice("Action", 0, 6);
             if (choice == 0) {
                 return;
             }
@@ -72,8 +98,10 @@ public final class ConsoleCamp implements Camp {
                 upgradeEquipped(character, inventory);
             } else if (choice == 4) {
                 upgradeFromBag(character, inventory);
-            } else {
+            } else if (choice == 5) {
                 spendMovePoints(character);
+            } else {
+                sellEquipped(character, inventory);
             }
         }
     }
@@ -164,6 +192,58 @@ public final class ConsoleCamp implements Camp {
             return;
         }
         tryUpgrade(character, inventory.get(choice - 1), inventory);
+    }
+
+    private void sellFromBag(Inventory inventory) {
+        while (true) {
+            if (inventory.isEmpty()) {
+                System.out.println("Bag is empty.");
+                return;
+            }
+            System.out.println("Sell from bag  gold " + inventory.getGold() + ":");
+            for (int i = 0; i < inventory.size(); i++) {
+                Gear piece = inventory.get(i);
+                System.out.println("  " + (i + 1) + ". " + piece.describe()
+                        + "  (" + piece.sellValue() + " gold)");
+            }
+            int choice = readChoice("Sell (0 = done)", 0, inventory.size());
+            if (choice == 0) {
+                return;
+            }
+            Gear piece = inventory.get(choice - 1);
+            int value = inventory.sell(piece);
+            System.out.println("  -> sold for " + value + " gold (total " + inventory.getGold() + ")");
+        }
+    }
+
+    private void sellEquipped(Character character, Inventory inventory) {
+        GearSlot[] slots = GearSlot.values();
+        boolean any = false;
+        for (int i = 0; i < slots.length; i++) {
+            Gear piece = character.getLoadout().get(slots[i]);
+            if (piece != null) {
+                any = true;
+                System.out.println("  " + (i + 1) + ". " + piece.describe()
+                        + "  (" + piece.sellValue() + " gold)");
+            } else {
+                System.out.println("  " + (i + 1) + ". " + slots[i].getLabel() + "  (empty)");
+            }
+        }
+        if (!any) {
+            System.out.println("Nothing equipped.");
+            return;
+        }
+        int choice = readChoice("Sell slot (0 = cancel)", 0, slots.length);
+        if (choice == 0) {
+            return;
+        }
+        Gear piece = character.getLoadout().get(slots[choice - 1]);
+        if (piece == null) {
+            System.out.println("That slot is empty.");
+            return;
+        }
+        int value = character.sellEquipped(slots[choice - 1], inventory);
+        System.out.println("  -> sold for " + value + " gold (total " + inventory.getGold() + ")");
     }
 
     private void tryUpgrade(Character character, Gear piece, Inventory inventory) {

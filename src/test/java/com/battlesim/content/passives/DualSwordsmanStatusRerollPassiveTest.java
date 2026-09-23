@@ -58,27 +58,27 @@ public class DualSwordsmanStatusRerollPassiveTest {
     }
 
     @Test
-    public void doublesBleedMagnitude() {
+    public void deepensBleedMagnitudeByHalf() {
         DualSwordsmanStatusRerollPassive passive = new DualSwordsmanStatusRerollPassive();
         Character self = character(passive);
         Character target = new Character("Foe", new Stats(200, 10, 10, 10, 10, 10),
                 Type.PHYSICAL, List.of());
         List<String> log = new ArrayList<>();
 
-        assertEquals(100, passive.modifyOutgoingStatusMagnitude(self, target, Status.BLEED, 50, log));
-        assertTrue(log.stream().anyMatch(line -> line.contains("twice as deep")));
+        assertEquals(75, passive.modifyOutgoingStatusMagnitude(self, target, Status.BLEED, 50, log));
+        assertTrue(log.stream().anyMatch(line -> line.contains("makes bleed deeper")));
     }
 
     @Test
-    public void paralysisSkipLastsTwoTurns() {
+    public void doesNotDoubleParalysis() {
         DualSwordsmanStatusRerollPassive passive = new DualSwordsmanStatusRerollPassive();
         Character self = character(passive);
         Character target = new Character("Foe", new Stats(200, 10, 10, 10, 10, 10),
                 Type.PHYSICAL, List.of());
         List<String> log = new ArrayList<>();
 
-        assertEquals(2, passive.modifyOutgoingStatusMagnitude(self, target, Status.PARALYSIS, 0, log));
-        assertTrue(log.stream().anyMatch(line -> line.contains("seize for 2 turns")));
+        assertEquals(0, passive.modifyOutgoingStatusMagnitude(self, target, Status.PARALYSIS, 0, log));
+        assertTrue(log.isEmpty());
     }
 
     @Test

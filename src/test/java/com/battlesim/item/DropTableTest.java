@@ -57,4 +57,26 @@ public class DropTableTest {
         assertTrue(DropTable.maybeDrop(EnemyRank.ELITE, never) == null);
         assertFalse(DropTable.maybeDrop(EnemyRank.BOSS, never) == null);
     }
+
+    @Test
+    public void chestAlwaysPaysGoldAndOnePiece() {
+        RandomProvider midRoll = new RandomProvider() {
+            @Override
+            public double nextDouble() {
+                return 0.50;
+            }
+
+            @Override
+            public int nextInt(int min, int max) {
+                return min;
+            }
+        };
+        DropTable.Loot early = DropTable.chest(10, 1.0, midRoll);
+        assertEquals(80, early.getGold());
+        assertEquals(1, early.getDrops().size());
+        assertEquals(GearRarity.RARE, early.getDrops().get(0).getRarity());
+
+        DropTable.Loot late = DropTable.chest(50, 1.0, midRoll);
+        assertEquals(GearRarity.EPIC, late.getDrops().get(0).getRarity());
+    }
 }

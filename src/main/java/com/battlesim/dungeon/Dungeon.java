@@ -15,6 +15,7 @@ import java.util.List;
 public class Dungeon {
 
     public static final int BOSS_EVERY = 15;
+    public static final int WAYPOINT_EVERY = 10;
     public static final int DEFAULT_FLOORS = 100;
     /** Opening block is weaker so early floors are not the spike. */
     public static final double STARTING_SCALE = 0.85;
@@ -74,6 +75,11 @@ public class Dungeon {
 
     public static boolean isBossWave(int waveNumber) {
         return waveNumber > 0 && waveNumber % BOSS_EVERY == 0;
+    }
+
+    /** Rest-or-chest stop after a cleared floor, if the climb continues. */
+    public static boolean isWaypointWave(int waveNumber) {
+        return waveNumber > 0 && waveNumber % WAYPOINT_EVERY == 0;
     }
 
     private static Wave buildWave(int waveNumber,

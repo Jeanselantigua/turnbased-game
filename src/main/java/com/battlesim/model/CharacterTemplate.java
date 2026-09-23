@@ -70,6 +70,15 @@ public class CharacterTemplate {
     }
 
     /**
+     * PvP / arena spawn: full kit, ult already ticking its normal cooldown.
+     */
+    public Character createPvpInstance() {
+        Character fighter = createFullyLearnedInstance();
+        fighter.putUltOnCooldown();
+        return fighter;
+    }
+
+    /**
      * Same kit, passives, and specialties with different combat stats
      * (e.g. Phase 2 arena numbers on the current move ladder).
      */

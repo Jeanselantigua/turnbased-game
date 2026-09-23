@@ -32,9 +32,12 @@ public class TypeChart {
         setEffectiveness(Type.ICE, Type.EARTH, 1.5);
         setEffectiveness(Type.ICE, Type.FIRE, 0.5);
         setEffectiveness(Type.ICE, Type.ICE, 0.5);
-        
+
+        setEffectiveness(Type.EARTH, Type.LIGHTNING, 1.5);
+        setEffectiveness(Type.EARTH, Type.EARTH, 0.5);
+
         setEffectiveness(Type.LIGHTNING, Type.EARTH, 0.0); // grounded — immune
-        setEffectiveness(Type.LIGHTNING, Type.PHYSICAL, 1.25);
+        setEffectiveness(Type.LIGHTNING, Type.PHYSICAL, 1.15);
         setEffectiveness(Type.LIGHTNING, Type.LIGHTNING, 0.5);
         
         setEffectiveness(Type.HOLY, Type.UNDEAD, 1.5);

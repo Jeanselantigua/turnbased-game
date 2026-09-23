@@ -20,6 +20,7 @@ public class Move {
     private final int cooldownTurns;       // 0 = no cooldown; remaining tracked on Character
     private final int minHits;
     private final int maxHits;
+    private final boolean hitsAllEnemies;
 
     public Move(String name, Type type, int power, int accuracy, int priority,
                 boolean isMagic, Status inflictedStatus, int statusChance) {
@@ -35,6 +36,13 @@ public class Move {
     public Move(String name, Type type, int power, int accuracy, int priority,
                 boolean isMagic, Status inflictedStatus, int statusChance, int cooldownTurns,
                 int minHits, int maxHits) {
+        this(name, type, power, accuracy, priority, isMagic, inflictedStatus, statusChance,
+                cooldownTurns, minHits, maxHits, false);
+    }
+
+    public Move(String name, Type type, int power, int accuracy, int priority,
+                boolean isMagic, Status inflictedStatus, int statusChance, int cooldownTurns,
+                int minHits, int maxHits, boolean hitsAllEnemies) {
         this.name = name;
         this.type = type;
         this.power = power;
@@ -46,6 +54,7 @@ public class Move {
         this.cooldownTurns = Math.max(0, cooldownTurns);
         this.minHits = Math.max(1, minHits);
         this.maxHits = Math.max(this.minHits, maxHits);
+        this.hitsAllEnemies = hitsAllEnemies;
     }
 
     public String getName() {
@@ -90,6 +99,11 @@ public class Move {
 
     public int getMaxHits() {
         return maxHits;
+    }
+
+    /** True if this move hits every living enemy, not just the chosen target. */
+    public boolean hitsAllEnemies() {
+        return hitsAllEnemies;
     }
 
     public boolean targetsAllies() {

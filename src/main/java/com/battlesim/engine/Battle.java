@@ -22,6 +22,7 @@ public class Battle implements BattleContext {
     private final TurnOrderScheduler scheduler;
     private final int maxActions;
     private final boolean verbose;
+    private BattleObserver observer;
 
     public Battle(Team teamA, Team teamB,
                    MoveSelector selectorA, MoveSelector selectorB,
@@ -65,9 +66,16 @@ public class Battle implements BattleContext {
                 statusEffectResolver, scheduler, maxActions, verbose);
     }
 
+    public Battle withObserver(BattleObserver observer) {
+        this.observer = observer;
+        return this;
+    }
+
     public BattleResult run() {
         List<String> fullLog = new ArrayList<>();
         int actionCount = 0;
+        notifyField();
+        notifyQueue();
 
         while (teamA.hasAnyAlive() && teamB.hasAnyAlive() && actionCount < maxActions) {
             Character actor = scheduler.getNextActor();
@@ -102,6 +110,12 @@ public class Battle implements BattleContext {
                 if (skipsOwnAction(actor)) {
                     for (Passive passive : new ArrayList<>(actor.getPassives())) {
                         passive.onActionSkipped(actor, this, log);
+                    }
+                    if (actor.hasQueuedAction()) {
+                        Move queued = actor.consumeQueuedMove();
+                        List<Character> queuedTargets = actor.consumeQueuedTargets();
+                        log.addAll(turnResolver.resolveAction(
+                                actor, new ActionChoice(queued, queuedTargets), this));
                     }
                 } else {
                     List<Move> available = availableMovesFor(actor);
@@ -141,15 +155,23 @@ public class Battle implements BattleContext {
             if (verbose) {
                 log.forEach(System.out::println);
             }
+            notifyTurn(log);
 
             scheduler.advanceActor(actor);
+            notifyQueue();
             actionCount++;
         }
 
         BattleResult.Winner winner = determineWinner();
+        String summary = resultLine(winner);
         if (verbose) {
-            announceResult(winner);
+            System.out.println(summary);
         }
+        if (observer != null) {
+            observer.onLog(List.of(summary));
+        }
+        notifyField();
+        notifyQueue();
 
         return new BattleResult(winner, actionCount, snapshotFighters(), fullLog);
     }
@@ -311,8 +333,18 @@ public class Battle implements BattleContext {
     }
 
     private List<Character> targetableOnly(List<Character> characters) {
+        List<Character> alive = aliveOnly(characters);
+        List<Character> taunting = new ArrayList<>();
+        for (Character character : alive) {
+            if (forcesAggro(character)) {
+                taunting.add(character);
+            }
+        }
+        if (!taunting.isEmpty()) {
+            return taunting;
+        }
         List<Character> targetable = new ArrayList<>();
-        for (Character character : aliveOnly(characters)) {
+        for (Character character : alive) {
             boolean hidden = false;
             for (Passive passive : character.getPassives()) {
                 if (passive.isUntargetable(character)) {
@@ -327,20 +359,49 @@ public class Battle implements BattleContext {
         return targetable;
     }
 
-    private void announceResult(BattleResult.Winner winner) {
+    private static boolean forcesAggro(Character character) {
+        for (Passive passive : character.getPassives()) {
+            if (passive.forcesAggro(character)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void notifyTurn(List<String> log) {
+        if (observer == null) {
+            return;
+        }
+        if (!log.isEmpty()) {
+            observer.onLog(List.copyOf(log));
+        }
+        notifyField();
+    }
+
+    private void notifyField() {
+        if (observer == null) {
+            return;
+        }
+        observer.onField(List.copyOf(teamA.getMembers()), List.copyOf(teamB.getMembers()));
+    }
+
+    private void notifyQueue() {
+        if (observer == null) {
+            return;
+        }
+        observer.onTurnQueue(List.copyOf(scheduler.preview(12)), List.copyOf(teamA.getMembers()));
+    }
+
+    private static String resultLine(BattleResult.Winner winner) {
         switch (winner) {
             case TEAM_A:
-                System.out.println("Team A wins!");
-                break;
+                return "Team A wins!";
             case TEAM_B:
-                System.out.println("Team B wins!");
-                break;
+                return "Team B wins!";
             case TIMEOUT:
-                System.out.println("Battle timed out — no winner.");
-                break;
+                return "Battle timed out — no winner.";
             default:
-                System.out.println("It's a draw — both teams were wiped!");
-                break;
+                return "It's a draw — both teams were wiped!";
         }
     }
 }

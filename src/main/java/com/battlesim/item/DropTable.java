@@ -38,6 +38,21 @@ public final class DropTable {
         return new Loot(gold, drops);
     }
 
+    /**
+     * Guaranteed waypoint chest: elite gold × 2 and one piece. Rarity uses the
+     * elite table through floor 49, then the boss table.
+     */
+    public static Loot chest(int waveNumber, double difficultyScale, RandomProvider random) {
+        if (random == null) {
+            return Loot.EMPTY;
+        }
+        int gold = goldFor(EnemyRank.ELITE, difficultyScale) * 2;
+        GearRarity rarity = waveNumber >= 50
+                ? bossRarity(random.nextDouble())
+                : eliteRarity(random.nextDouble());
+        return new Loot(gold, List.of(GearFactory.random(rarity, random)));
+    }
+
     public static int goldFor(EnemyRank rank, double difficultyScale) {
         if (rank == null || difficultyScale <= 0) {
             return 0;

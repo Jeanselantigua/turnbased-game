@@ -3,7 +3,6 @@ package com.battlesim.content.passives;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import com.battlesim.content.PlayableCharacters;
 import com.battlesim.engine.ActionChoice;
 import com.battlesim.engine.DamageCalculator;
 import com.battlesim.engine.SimpleAiMoveSelector;
@@ -12,6 +11,7 @@ import com.battlesim.engine.TypeChart;
 import com.battlesim.model.Character;
 import com.battlesim.model.Move;
 import com.battlesim.model.Stats;
+import com.battlesim.model.Status;
 import com.battlesim.model.Type;
 import com.battlesim.progress.Growth;
 import com.battlesim.util.RandomProvider;
@@ -41,14 +41,23 @@ public class HeavenPiercingBladePassiveTest {
     }
 
     private static Character healthyChampion() {
-        return PlayableCharacters.knight().createFullyLearnedInstance();
+        return bladeWielder(false);
     }
 
     private static Character hailMaryChampion() {
-        Character champion = PlayableCharacters.knight().createFullyLearnedInstance();
-        int max = champion.getStats().getMaxHp();
-        int threshold = (max * 3) / 20;
-        champion.getStats().applyDamage(max - Math.max(1, threshold - 1));
+        return bladeWielder(true);
+    }
+
+    private static Character bladeWielder(boolean desperate) {
+        Move slash = new Move("Slash", Type.PHYSICAL, 40, 100, 0, false, Status.NONE, 0);
+        Character champion = new Character("Blade", new Stats(200, 40, 20, 0, 10, 20),
+                Type.PHYSICAL, List.of(slash, HeavenPiercingBladePassive.createMove()),
+                List.of(new HeavenPiercingBladePassive()));
+        if (desperate) {
+            int max = champion.getStats().getMaxHp();
+            int threshold = (max * 3) / 20;
+            champion.getStats().applyDamage(max - Math.max(1, threshold - 1));
+        }
         return champion;
     }
 

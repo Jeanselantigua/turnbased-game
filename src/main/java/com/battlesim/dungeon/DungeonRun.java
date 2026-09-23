@@ -1,6 +1,7 @@
 package com.battlesim.dungeon;
 
 import com.battlesim.engine.Battle;
+import com.battlesim.engine.BattleObserver;
 import com.battlesim.engine.BattleResult;
 import com.battlesim.engine.MoveSelector;
 import com.battlesim.engine.SimpleAiMoveSelector;
@@ -20,7 +21,8 @@ import java.util.List;
 /**
  * Runs a dungeon: same player Characters persist across waves (HP/status carry over).
  * Wins grant XP, gold, and gear; level-ups auto-bump HP and speed, then {@link StatAllocator}
- * spends leftover points. Console play can open a {@link Camp} between waves.
+ * spends leftover points. Every {@link Dungeon#WAYPOINT_EVERY} floors the party
+ * rests or opens a chest. Console play can open a {@link Camp} between waves.
  */
 public final class DungeonRun {
 
@@ -78,6 +80,20 @@ public final class DungeonRun {
                                     StatAllocator allocator,
                                     Inventory inventory,
                                     Camp camp) {
+        return run(party, dungeon, playerSelector, random, keepLog, verbose,
+                allocator, inventory, camp, null);
+    }
+
+    public static DungeonResult run(List<Character> party,
+                                    Dungeon dungeon,
+                                    MoveSelector playerSelector,
+                                    RandomProvider random,
+                                    boolean keepLog,
+                                    boolean verbose,
+                                    StatAllocator allocator,
+                                    Inventory inventory,
+                                    Camp camp,
+                                    BattleObserver observer) {
         Team player = new Team(party);
         MoveSelector enemyAi = new SimpleAiMoveSelector(random);
         List<String> combinedLog = keepLog ? new ArrayList<>() : List.of();
@@ -103,9 +119,15 @@ public final class DungeonRun {
                 printHp("Party", party);
             }
 
-            BattleResult result = Battle.create(
+            Battle battle = Battle.create(
                     player, enemies, playerSelector, enemyAi,
-                    random, Battle.DEFAULT_MAX_ACTIONS, verbose).run();
+                    random, Battle.DEFAULT_MAX_ACTIONS, verbose);
+            if (observer != null) {
+                observer.onLog(List.of("--- " + label + " ---"));
+                observer.onField(List.copyOf(party), List.copyOf(enemies.getMembers()));
+                battle.withObserver(observer);
+            }
+            BattleResult result = battle.run();
             if (keepLog) {
                 combinedLog.addAll(result.getLog());
             }
@@ -116,7 +138,14 @@ public final class DungeonRun {
 
             awardWaveXp(party, wave, scale, points, keepLog, combinedLog, verbose);
             awardLoot(wave, scale, bag, lootRng, keepLog, combinedLog, verbose);
-            hub.afterWave(party, bag, waveNumber, waveNumber < waves.size());
+            boolean moreWaves = waveNumber < waves.size();
+            if (Waypoint.isDue(waveNumber, moreWaves)) {
+                WaypointChoice choice = hub.pickWaypoint(party, bag, waveNumber);
+                for (String line : Waypoint.apply(choice, party, bag, waveNumber, scale, lootRng)) {
+                    record(line, keepLog, combinedLog, verbose);
+                }
+            }
+            hub.afterWave(party, bag, waveNumber, moreWaves);
         }
         return new DungeonResult(waves.size(), true, combinedLog);
     }

@@ -3,7 +3,6 @@ package com.battlesim.content.passives;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import com.battlesim.content.PlayableCharacters;
 import com.battlesim.engine.ActionChoice;
 import com.battlesim.engine.DamageCalculator;
 import com.battlesim.engine.TurnResolver;
@@ -100,12 +99,11 @@ public class ChampionsGiftPassiveTest {
     }
 
     @Test
-    public void templateUsesGiftInsteadOfBleed() {
-        Character champion = PlayableCharacters.knight().createFullyLearnedInstance();
+    public void giftStillAwakensOnItsOwnCharacter() {
+        ChampionsGiftPassive gift = new ChampionsGiftPassive(alwaysCrits());
+        Character champion = champion(gift);
         assertTrue(champion.hasPassive(ChampionsGiftPassive.class));
-        assertTrue(champion.hasPassive(KnightShieldPassive.class));
         assertEquals("Mechanized Champion", champion.getName());
-        assertEquals(HeavenPiercingBladePassive.MOVE_NAME, champion.getKit().getUlt().getName());
     }
 
     @Test

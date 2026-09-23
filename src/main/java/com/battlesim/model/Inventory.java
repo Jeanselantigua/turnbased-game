@@ -57,4 +57,17 @@ public final class Inventory {
         gold -= amount;
         return true;
     }
+
+    /**
+     * Removes {@code gear} from the bag and pays its sell value.
+     * @return gold gained, or 0 if the piece was not in the bag
+     */
+    public int sell(Gear gear) {
+        if (!remove(gear)) {
+            return 0;
+        }
+        int value = gear.sellValue();
+        addGold(value);
+        return value;
+    }
 }

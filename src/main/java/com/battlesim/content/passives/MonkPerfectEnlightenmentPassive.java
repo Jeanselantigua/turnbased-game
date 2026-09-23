@@ -15,9 +15,10 @@ import java.util.List;
  *
  * Team Meditate grants damage resist (still targetable). If an ally falls
  * during the channel, the ritual fails and the monk becomes Angered.
- * opponent to disrupting moves. Enlightened lasts 6 of the monk's turns
- * (+2 per Blessed stack applied), staff hits deal reduced damage and
- * apply Blessed; Divine Blessing deals 100 + 8.5% of the target's max HP.
+ * opponent to disrupting moves. Enlightened lasts 6 of the monk's turns.
+ * Staff hits deal reduced damage and apply Blessed; Divine Blessing deals
+ * 100 + 8% of the target's max HP and extends Enlightenment only when
+ * those 3 stacks are consumed.
  */
 public class MonkPerfectEnlightenmentPassive implements Passive {
 
@@ -31,6 +32,9 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     public static final String MOVE_NAME = "Meditate";
     public static final String SWING_NAME = "Heavy Staff Swing";
     public static final String RECOVER_NAME = "Recover";
+
+    public static final String OOCHIE_NAME = "Oochie";
+    public static final String DIVINE_PALM_NAME = "Divine Palm";
 
     public static final int CHANNEL_TURNS = 2;
     public static final int BLESSED_CAP = 3;
@@ -62,7 +66,7 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     public static final int DODGE_RESET_TURNS = 5;
 
     public static final int DIVINE_BLESSING_BASE_DAMAGE = 100;
-    public static final double DIVINE_BLESSING_MAX_HP_RATIO = 0.085;
+    public static final double DIVINE_BLESSING_MAX_HP_RATIO = 0.08;
 
     /**
      * DECISION PENDING: (a) execute if target HP &lt; threshold, or
@@ -161,11 +165,6 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
         int after = target.getBlessedStacks();
         if (after > before) {
             log.add(target.getName() + " gains Blessed (" + after + "/" + BLESSED_CAP + ")!");
-            if (phase == Phase.ENLIGHTENED) {
-                enlightenedTurnsRemaining += BLESSED_EXTENSION_TURNS;
-                log.add("Enlightenment is extended! (" + enlightenedTurnsRemaining
-                        + " turns remaining)");
-            }
         }
     }
 
@@ -451,6 +450,11 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
             blessedAnyone = true;
         }
         if (blessedAnyone) {
+            if (phase == Phase.ENLIGHTENED) {
+                enlightenedTurnsRemaining += BLESSED_EXTENSION_TURNS;
+                log.add("Enlightenment is extended! (" + enlightenedTurnsRemaining
+                        + " turns remaining)");
+            }
             self.startMoveCooldown(MOVE_NAME, COOLDOWN_TURNS);
         } else {
             log.add(self.getName() + "'s Divine Blessing has no effect.");
@@ -486,8 +490,11 @@ public class MonkPerfectEnlightenmentPassive implements Passive {
     }
 
     private static boolean isStaffBasic(Move move) {
+        if (move == null) {
+            return false;
+        }
         String name = move.getName();
-        return !MOVE_NAME.equals(name) && !SWING_NAME.equals(name) && !RECOVER_NAME.equals(name);
+        return OOCHIE_NAME.equals(name) || DIVINE_PALM_NAME.equals(name);
     }
 
     private static boolean hasLivingAlly(Character self, BattleContext context) {

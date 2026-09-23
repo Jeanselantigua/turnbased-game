@@ -41,6 +41,12 @@ public class Stats {
         return currentHp - before;
     }
 
+    /** Full HP, including from fainted. Combat shields drop. */
+    public void restoreFully() {
+        currentHp = maxHp;
+        shieldHp = 0;
+    }
+
     public void grantShield(int amount) {
         if (amount <= 0) {
             return;
@@ -148,7 +154,7 @@ public class Stats {
                 magicAttack = Math.max(0, magicAttack + amount);
                 break;
             case MAGIC_DEFENSE:
-                magicDefense = Math.max(0, magicDefense + amount);
+                magicDefense += amount;
                 break;
             case SPEED:
                 speed = Math.max(1, speed + amount);

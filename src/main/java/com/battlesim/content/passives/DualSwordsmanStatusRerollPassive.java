@@ -9,7 +9,8 @@ import java.util.Random;
 
 public class DualSwordsmanStatusRerollPassive implements Passive {
 
-    static final double REROLL_CHANCE = 0.30;
+    static final double REROLL_CHANCE = 0.10;
+    static final double BLEED_MAGNITUDE_MULTIPLIER = 1.5;
     private final Random random;
 
     public DualSwordsmanStatusRerollPassive() {
@@ -34,13 +35,8 @@ public class DualSwordsmanStatusRerollPassive implements Passive {
     public int modifyOutgoingStatusMagnitude(Character self, Character target, Status status,
                                               int magnitude, List<String> log) {
         if (status == Status.BLEED) {
-            log.add(self.getName() + " makes bleed twice as deep!");
-            return magnitude * 2;
-        }
-        if (status == Status.PARALYSIS) {
-            int skipTurns = magnitude <= 0 ? 1 : magnitude;
-            log.add(self.getName() + " makes paralysis seize for 2 turns!");
-            return skipTurns * 2;
+            log.add(self.getName() + " makes bleed deeper!");
+            return (int) Math.round(magnitude * BLEED_MAGNITUDE_MULTIPLIER);
         }
         return magnitude;
     }

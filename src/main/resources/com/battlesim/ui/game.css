@@ -1,0 +1,190 @@
+.root-pane {
+    -fx-background-color: #14161e;
+}
+
+.screen {
+    -fx-background-color: #14161e;
+}
+
+.hero-title, .title {
+    -fx-text-fill: #eeeae3;
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+}
+
+.banner {
+    -fx-text-fill: #d4a84b;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.muted, .section-label, .prompt, .fighter-hp, .fighter-status {
+    -fx-text-fill: #9aa0b4;
+}
+
+.section-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.prompt {
+    -fx-font-size: 15px;
+    -fx-text-fill: #eeeae3;
+}
+
+.primary-button, .move-button, .roster-card {
+    -fx-background-color: #2a3145;
+    -fx-text-fill: #eeeae3;
+    -fx-background-radius: 8;
+    -fx-padding: 10 18 10 18;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.primary-button:hover, .move-button:hover, .roster-card:hover {
+    -fx-background-color: #35405a;
+}
+
+.move-button:disabled {
+    -fx-opacity: 0.45;
+}
+
+.primary-button {
+    -fx-background-color: #d4a84b;
+    -fx-text-fill: #1a1408;
+    -fx-font-weight: bold;
+}
+
+.primary-button:hover {
+    -fx-background-color: #e0bc6a;
+}
+
+.ghost-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #9aa0b4;
+    -fx-border-color: #3a4158;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+
+.roster-card.selected {
+    -fx-background-color: #d4a84b;
+    -fx-text-fill: #1a1408;
+    -fx-font-weight: bold;
+}
+
+.fighter-card {
+    -fx-background-color: #1e2230;
+    -fx-background-radius: 10;
+    -fx-border-color: #2f3548;
+    -fx-border-radius: 10;
+}
+
+.fighter-card.acting {
+    -fx-border-color: #d4a84b;
+    -fx-border-width: 2;
+}
+
+.fighter-name {
+    -fx-text-fill: #eeeae3;
+    -fx-font-weight: bold;
+}
+
+.hp-track {
+    -fx-background-color: #12141c;
+    -fx-background-radius: 4;
+    -fx-pref-height: 8;
+    -fx-min-height: 8;
+}
+
+.hp-fill {
+    -fx-background-radius: 4;
+}
+
+.combat-log {
+    -fx-control-inner-background: #12141c;
+    -fx-text-fill: #d5d1c8;
+    -fx-font-family: "Consolas", "Cascadia Mono", monospace;
+    -fx-font-size: 13px;
+    -fx-background-color: #12141c;
+    -fx-border-color: #2f3548;
+}
+
+.log-pane {
+    -fx-background-color: #12141c;
+    -fx-background: #12141c;
+}
+
+.queue-box {
+    -fx-background-color: #181b26;
+    -fx-background-radius: 10;
+    -fx-padding: 10;
+    -fx-border-color: #2f3548;
+    -fx-border-radius: 10;
+}
+
+.queue-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.queue-row {
+    -fx-background-color: #1e2230;
+    -fx-background-radius: 6;
+    -fx-padding: 6 8 6 8;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.queue-row.now {
+    -fx-background-color: #3a2f18;
+    -fx-border-color: #d4a84b;
+    -fx-border-radius: 6;
+}
+
+.queue-av {
+    -fx-text-fill: #d4a84b;
+    -fx-font-family: "Consolas", "Cascadia Mono", monospace;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.queue-name {
+    -fx-text-fill: #eeeae3;
+    -fx-font-size: 13px;
+}
+
+.queue-row.enemy .queue-name {
+    -fx-text-fill: #c98a8a;
+}
+
+.queue-row.ally .queue-name {
+    -fx-text-fill: #8ec8a8;
+}
+
+.camp-gold, .camp-sheet {
+    -fx-text-fill: #eeeae3;
+    -fx-font-size: 14px;
+}
+
+.slot-button, .bag-item {
+    -fx-background-color: #2a3145;
+    -fx-text-fill: #eeeae3;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12 8 12;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+    -fx-alignment: CENTER_LEFT;
+    -fx-text-alignment: left;
+}
+
+.slot-button:hover, .bag-item:hover {
+    -fx-background-color: #35405a;
+}
+
+.slot-button.selected, .bag-item.selected, .roster-card.selected {
+    -fx-background-color: #d4a84b;
+    -fx-text-fill: #1a1408;
+    -fx-font-weight: bold;
+}
